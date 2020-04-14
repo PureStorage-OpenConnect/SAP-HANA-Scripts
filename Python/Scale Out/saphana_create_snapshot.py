@@ -38,7 +38,7 @@ parser.add_argument('-fap','--flasharraypassword', help='Password for the user w
 
 args = parser.parse_args()
 
-hostaddresses = args.hostaddresss
+hostaddress = args.hostaddresss
 domainname = args.domainname
 instancenumber = args.instancenumber
 databasename = args.databasename
@@ -179,7 +179,7 @@ def prepare_saphana_storage_snapshot():
 
 
 def confirm_saphana_storage_snapshot(BackupID, EBID):
-    hdbConfirmStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CLOSE SNAPSHOT BACKUP_ID " 
+    hdbConfirmStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CLOSE SNAPSHOT BACKUP_ID " \
     + str(BackupID) + " SUCCESSFUL '" + "FlashArray Snapshot ID :" + str(EBID) + "';"
     multidb = check_saphana_system_type()
     if multidb:
@@ -190,7 +190,7 @@ def confirm_saphana_storage_snapshot(BackupID, EBID):
 
 
 def abandon_saphana_storage_snapshot(BackupID, EBID):
-    hdbAbandonStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CLOSE SNAPSHOT BACKUP_ID " 
+    hdbAbandonStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CLOSE SNAPSHOT BACKUP_ID " \
     + str(BackupID) + " UNSUCCESSFUL '" + str(EBID) + "';"
     multidb = check_saphana_system_type()
     if multidb:
