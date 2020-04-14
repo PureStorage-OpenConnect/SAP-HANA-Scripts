@@ -208,7 +208,7 @@ try:
     freeze_filesystem(data_volume)
     volume_snapshot_id = create_flasharray_volume_snapshot(get_volume_serialno(data_volume), \
         "SAP-HANA-Backup-ID-" + str(saphana_backup_id))
-    print("Volume Snapshot serial number :" str(volume_snapshot_id))
+    print("Volume Snapshot serial number :" + str(volume_snapshot_id))
     unfreeze_filesystem(data_volume)
     if saphana_backup_id is not None and volume_snapshot_id is not None:
         print("Confirming storage snapshot with SAP HANA Backup ID : " + str(saphana_backup_id))
