@@ -9,56 +9,60 @@ from datetime import datetime
 #Arguments
 parser = argparse.ArgumentParser(description='Process the creation of an SAP \
     HANA application consistent storage snapshot')
-parser.add_argument('--hostaddresss', help='Host address (hostname) of an SAP \
-    HANA Scale Out worker')
-parser.add_argument('--domainname', help='Domain name of domain where SAP \
-    HANA scale out nodes are located')
-parser.add_argument('--instancenumber', help='SAP HANA instance number , \
+parser.add_argument('-ha','--hostaddresss', help='Host address (hostname) of an SAP \
+    HANA Scale Out worker', default='localhost')
+parser.add_argument('-d','--domainname', help='Domain name of domain where SAP \
+    HANA scale out nodes are located', required=True)
+parser.add_argument('-i','--instancenumber', help='SAP HANA instance number , \
     typically in the form 00',  default=00)
-parser.add_argument('--databasename', help='SAP HANA database or tenant name')
-parser.add_argument('--port', help='SAP HANA port number , typically in \
-    the form 15,41 taken from the final two digits of the port number', default=15)
-parser.add_argument('--databaseuser', help='SAP HANA database user with \
-    the correct permissions to create a storage snapshot')
-parser.add_argument('--databasepassword', help='SAP HANA database \
-    password with the correct permissions to create a storage snapshot')
-parser.add_argument('--operatingsystemuser', help='A user with the \
-    permissions to freeze the SAP HANA data volume')
-parser.add_argument('--operatingsystempassword', help='Password for \
-    the user with permissions to freeze the SAP HANA data volume')
-parser.add_argument('--flasharray', help='The IP address or hostname \
-    of a Pure Storage FlashArray with the SAP HANA systems volumes on it ')
-parser.add_argument('--flasharrayuser', help='A user on the FlashArray \
-    with permissions to create a volume snapshot')
-parser.add_argument('--flasharraypassword', help='Password for the user \
-    with permissions to create a volume snapshot on FlashArray')
+parser.add_argument('-dn','--databasename', help='SAP HANA database or tenant name', \
+    required=True)
+parser.add_argument('-p','--port', help='SAP HANA port number , typically in the \
+    form 15,41 taken from the final two digits of the port number', default=15)
+parser.add_argument('-du','--databaseuser', help='SAP HANA database user with the \
+    correct permissions to create a storage snapshot', required=True)
+parser.add_argument('-dp','--databasepassword', help='SAP HANA database password \
+    with the correct permissions to create a storage snapshot', required=True)
+parser.add_argument('-osu','--operatingsystemuser', help='A user with the permissions \
+    to freeze the SAP HANA data volume and view volume information', \
+         required=True)
+parser.add_argument('-osp','--operatingsystempassword', help='Password for the user \
+    with permissions to freeze the SAP HANA data volume and view volume information'\
+        , required=True)
+parser.add_argument('-fa','--flasharray', help='The IP address or hostname of a Pure \
+    Storage FlashArray with the SAP HANA systems volumes on it ', required=True)
+parser.add_argument('-fau','--flasharrayuser', help='A user on the FlashArray with \
+    permissions to create a volume snapshot', required=True)
+parser.add_argument('-fap','--flasharraypassword', help='Password for the user with \
+    permissions to create a volume snapshot on FlashArray', required=True)
 
 args = parser.parse_args()
 
-# hostaddresses = args.hostaddresss
-# instancenumber = args.instancenumber
-# databasename = args.databasename
-# port = args.port
-# databaseuser = args.databaseuser
-# databasepassword = args.databasepassword
-# operatingsystemuser = args.operatingsystemuser
-# operatingsystempassword = args.operatingsystempassword
-# flasharray = args.flasharray
-# flasharrayuser = args.flasharrayuser
-# flasharraypassword = args.flasharraypassword
+hostaddresses = args.hostaddresss
+domainname = args.domainname
+instancenumber = args.instancenumber
+databasename = args.databasename
+port = args.port
+databaseuser = args.databaseuser
+databasepassword = args.databasepassword
+operatingsystemuser = args.operatingsystemuser
+operatingsystempassword = args.operatingsystempassword
+flasharray = args.flasharray
+flasharrayuser = args.flasharrayuser
+flasharraypassword = args.flasharraypassword
 
-hostaddress = "SHN2.puredoes.local"
-domainname = "puredoes.local"
-instancenumber = "00"
-databasename = "SH1"
-port = "15"
-databaseuser = "SYSTEM"
-databasepassword = "Osmium76"
-operatingsystemuser = "root"
-operatingsystempassword = "Osmium76"
-flasharray = "10.21.227.24"
-flasharrayuser = "pureuser"
-flasharraypassword = "pureuser"
+# hostaddress = ""
+# domainname = ""
+# instancenumber = ""
+# databasename = ""
+# port = ""
+# databaseuser = ""
+# databasepassword = ""
+# operatingsystemuser = ""
+# operatingsystempassword = ""
+# flasharray = ""
+# flasharrayuser = ""
+# flasharraypassword = ""
 
 
 def check_pythonversion():
@@ -237,7 +241,8 @@ try:
     else:
         print("Abandoning storage snapshot with SAP HANA Backup ID : " + str(saphana_backup_id))
         abandon_saphana_storage_snapshot(saphana_backup_id, "no_value")
-except:
+except Exception as e:
+    print(e)
     if saphana_backup_id is not None:
         print("Abandoning storage snapshot with SAP HANA Backup ID : " + str(saphana_backup_id))
         abandon_saphana_storage_snapshot(saphana_backup_id, "no_value")
