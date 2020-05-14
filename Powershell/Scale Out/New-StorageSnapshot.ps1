@@ -623,8 +623,6 @@ if(Check-ForPrerequisites)
             $deviceInfo = Get-HostAttachedVolume -HostAddress $shhost -SapHANAStorageInfo $logDevices -OSUser $OperatingSystemUser -OSPassword $OperatingSystemPassword
             $HostStorageInfo += $deviceInfo[1]
         }
-
-
         
         $Persistence = @()
         foreach($d in $HostStorageInfo)
