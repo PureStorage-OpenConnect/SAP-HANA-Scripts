@@ -523,7 +523,7 @@ if(Check-ForPrerequisites)
 
         #Check if the log and data volumes are already apart of a protection group 
 
-        $PGName = "SAPHANA-" +$DatabaseName + "-CrashConsistent"
+        $PGName = "SAPHANA-" + $DatabaseName + "-CrashConsistency"
 
         $Persistence = Check-PureStoragePG -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser -Password $PureFlashArrayPassword -PersistenceInfo $Persistence -PGName $PGName
 

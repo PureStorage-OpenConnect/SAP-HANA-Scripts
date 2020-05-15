@@ -35,6 +35,9 @@ parser.add_argument('-fau','--flasharrayuser', help='A user on the FlashArray wi
     permissions to create a volume snapshot', required=True)
 parser.add_argument('-fap','--flasharraypassword', help='Password for the user with \
     permissions to create a volume snapshot on FlashArray', required=True)
+parser.add_argument('-cc','--crashconsistent', action="store_false", default=None,\
+     help='Create a crash consistent snapshot in a protection group',required=False)   
+parser.add_argument('--version', action='version', version='%(prog)s 0.2')
 
 args = parser.parse_args()
 
@@ -50,6 +53,7 @@ operatingsystempassword = args.operatingsystempassword
 flasharray = args.flasharray
 flasharrayuser = args.flasharrayuser
 flasharraypassword = args.flasharraypassword
+crashconsistent = args.crashconsistent
 
 # hostaddress = ""
 # domainname = ""
@@ -63,6 +67,7 @@ flasharraypassword = args.flasharraypassword
 # flasharray = ""
 # flasharrayuser = ""
 # flasharraypassword = ""
+# crashconsistent = False
 
 
 def check_pythonversion():
@@ -116,9 +121,9 @@ def prepare_ssh_connection(host):
     return sshclient
 
     
-def get_volume_serialno(host,datavolume_mount):
+def get_volume_serialno(host,volume_mount):
     sshclient = prepare_ssh_connection(host)
-    get_volumemountpoint_command = "df -h | grep " + str(datavolume_mount)
+    get_volumemountpoint_command = "df -h | grep " + str(volume_mount)
     stdin, stdout, stderr = sshclient.exec_command(get_volumemountpoint_command)
     opt = stdout.readlines()
     parsedvolume_location = re.search("([^[']\S+)",str(opt))
@@ -134,16 +139,16 @@ def get_volume_serialno(host,datavolume_mount):
     volumeserial = volumeserial_toparse[0]
     return volumeserial
 
-def freeze_filesystem(host,datavolume_mount):
+def freeze_filesystem(host,volume_mount):
     sshclient = prepare_ssh_connection(host)
-    get_volumemountpoint_command = "/sbin/fsfreeze --freeze" + str(datavolume_mount)
+    get_volumemountpoint_command = "/sbin/fsfreeze --freeze" + str(volume_mount)
     stdin, stdout, stderr = sshclient.exec_command(get_volumemountpoint_command)
     opt = stdout.readlines()
     sshclient.close()
 
-def unfreeze_filesystem(host,datavolume_mount):
+def unfreeze_filesystem(host,volume_mount):
     sshclient = prepare_ssh_connection(host)
-    get_volumemountpoint_command = "/sbin/fsfreeze --unfreeze" + str(datavolume_mount)
+    get_volumemountpoint_command = "/sbin/fsfreeze --unfreeze" + str(volume_mount)
     stdin, stdout, stderr = sshclient.exec_command(get_volumemountpoint_command)
     opt = stdout.readlines()
     sshclient.close()
@@ -164,7 +169,7 @@ def create_flasharray_volume_snapshot(serialnumber,snapshot_suffix):
 def prepare_saphana_storage_snapshot():
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    hdbPrepareStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CREATE SNAPSHOT COMMENT 'SNAPSHOT-" 
+    hdbPrepareStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CREATE SNAPSHOT COMMENT 'SNAPSHOT-" \
     + dt_string +"';"
     hdbRetrieveStorageSnapshotID = "SELECT BACKUP_ID, COMMENT FROM M_BACKUP_CATALOG WHERE \
         ENTRY_TYPE_NAME = 'data snapshot' AND STATE_NAME = 'prepared' AND COMMENT = 'SNAPSHOT-" + dt_string +"';"
@@ -199,6 +204,17 @@ def abandon_saphana_storage_snapshot(BackupID, EBID):
     else:
         execute_saphana_command(hdbAbandonStorageSnapshot, port)
 
+def get_volume_name(serialno):
+    array = purestorage.FlashArray(flasharray,flasharrayuser, flasharraypassword,verify_https=False)
+    volumes =  array.list_volumes()
+    for key in volumes:
+        volname = key.get("name")
+        volserial = str(key.get("serial")).lower()
+        found = volserial in serialno
+        if found:
+            return volname
+    return False
+
 def get_saphana_data_volume_and_hosts():
     hdbGetHANADataVolumeAndHosts = "SELECT HOST, STORAGE_ID, PATH, KEY, VALUE FROM SYS.M_ATTACHED_STORAGES WHERE KEY = \
     'WWID' AND PATH LIKE (SELECT CONCAT(VALUE,'%') FROM M_INIFILE_CONTENTS WHERE FILE_NAME = 'global.ini' AND SECTION = \
@@ -219,31 +235,84 @@ def get_saphana_nameserver_host():
     nameserver_host = nameserver_host[0].column_values[0]
     return nameserver_host
 
+def get_persistence_volumes_location():
+    hdbGetPersistenceDataVolumesLocation = "SELECT HOST, STORAGE_ID, PATH, KEY, VALUE FROM SYS.M_ATTACHED_STORAGES \
+                WHERE KEY = 'WWID' AND PATH LIKE (SELECT CONCAT(VALUE,'%') FROM M_INIFILE_CONTENTS WHERE FILE_NAME \
+                = 'global.ini' AND SECTION = 'persistence' AND KEY = 'basepath_datavolumes' AND VALUE NOT LIKE '$%')"
+    hdbGetPersistenceLogVolumesLocation = "SELECT HOST, STORAGE_ID, PATH, KEY, VALUE FROM SYS.M_ATTACHED_STORAGES \
+                WHERE KEY = 'WWID' AND PATH LIKE (SELECT CONCAT(VALUE,'%') FROM M_INIFILE_CONTENTS WHERE FILE_NAME\
+                = 'global.ini' AND SECTION = 'persistence' AND KEY = 'basepath_logvolumes' AND VALUE NOT LIKE '$%')"
+    persistenceDataVolumes = execute_saphana_command(hdbGetPersistenceDataVolumesLocation, port)
+    persistenceLogVolumes = execute_saphana_command(hdbGetPersistenceLogVolumesLocation, port)
+    volumes = []
+    for item in persistenceDataVolumes:
+        mount = item.column_values[2]
+        serialNumber = get_volume_serialno(item.column_values[0],mount)
+        volname = get_volume_name(serialNumber)
+        if (volname == False):
+            raise NameError('The volume was not found on this array')
+        else:
+            volumedata = {'host' : item[0], 'mountpoint': mount, \
+            'serialnumber': serialNumber, 'volumename' : volname}
+            volumes.append(volumedata)
+    for item in persistenceLogVolumes:
+        mount = item.column_values[2]
+        serialNumber = get_volume_serialno(item.column_values[0],mount)
+        volname = get_volume_name(serialNumber)
+        if (volname == False):
+            raise NameError('The volume was not found on this array')
+        else:
+            volumedata = {'host' : item[0], 'mountpoint': mount, \
+            'serialnumber': serialNumber, 'volumename' : volname}
+            volumes.append(volumedata)
+    return volumes
+
+def create_protection_group_snap(volumes):
+    pgname = "SAPHANA-" + databasename + "-CrashConsistency"
+    array = purestorage.FlashArray(flasharray,flasharrayuser, flasharraypassword,verify_https=False)
+    try:
+        pgroup = array.get_pgroup(pgname)
+    except Exception:
+        array.create_pgroup(pgname)
+    for vol in volumes:
+        protectiongroups = array.add_volume(vol.get('volumename'), pgname)
+    pgsnap = array.create_pgroup_snapshot(pgname)
+    return pgsnap
+
 
 
 try:
-    hosts_and_vols = get_saphana_data_volume_and_hosts()
-    saphana_backup_id = prepare_saphana_storage_snapshot()
-    volume_snapshot_id = ""
-    for h_v in hosts_and_vols:
-        host = h_v.column_values[0] + domainname
-        mount_point = h_v.column_values[2]
-        freeze_filesystem(host, mount_point)
-        mount_point_parse = mount_point.replace('/',"")
-        vol_snap_suffix = "SAPHANA-" + host + "-" + mount_point_parse + "-"  + str(saphana_backup_id)
-        print("Creating storage snapshot for mount point : " + mount_point_parse + "on host : " + host)
-        volume_snapshot_id = volume_snapshot_id + "-" + vol_snap_suffix + "-" + \
-        create_flasharray_volume_snapshot(get_volume_serialno(host, mount_point),vol_snap_suffix)
-        unfreeze_filesystem(host, mount_point)
-    if saphana_backup_id is not None and volume_snapshot_id is not None:
-        print("Confirming storage snapshot with SAP HANA Backup ID : " + str(saphana_backup_id))
-        confirm_saphana_storage_snapshot(saphana_backup_id, volume_snapshot_id)
+    if(crashconsistent == False):
+        hosts_and_vols = get_saphana_data_volume_and_hosts()
+        saphana_backup_id = prepare_saphana_storage_snapshot()
+        volume_snapshot_id = ""
+        for h_v in hosts_and_vols:
+            host = h_v.column_values[0] + "."  + domainname
+            mount_point = h_v.column_values[2]
+            freeze_filesystem(host, mount_point)
+            mount_point_parse = mount_point.replace('/',"")
+            vol_snap_suffix = "SAPHANA-" + h_v.column_values[0] + "-" + mount_point_parse + "-"  + str(saphana_backup_id)
+            print("Creating storage snapshot for mount point : " + mount_point_parse + "on host : " + host)
+            volume_snapshot_id = volume_snapshot_id + "-" + vol_snap_suffix + "-" + \
+            create_flasharray_volume_snapshot(get_volume_serialno(host, mount_point),vol_snap_suffix)
+            unfreeze_filesystem(host, mount_point)
+        if saphana_backup_id is not None and volume_snapshot_id is not None:
+            print("Confirming storage snapshot with SAP HANA Backup ID : " + str(saphana_backup_id))
+            confirm_saphana_storage_snapshot(saphana_backup_id, volume_snapshot_id)
+        else:
+            print("Abandoning storage snapshot with SAP HANA Backup ID : " + str(saphana_backup_id))
+            abandon_saphana_storage_snapshot(saphana_backup_id, "no_value")
     else:
-        print("Abandoning storage snapshot with SAP HANA Backup ID : " + str(saphana_backup_id))
-        abandon_saphana_storage_snapshot(saphana_backup_id, "no_value")
+        formattedvolumes = get_persistence_volumes_location()
+        for volume in formattedvolumes:
+            freeze_filesystem(volume.get('host'),volume.get('mountpoint'))
+        snapname = create_protection_group_snap(formattedvolumes)
+        for volume in formattedvolumes:
+           unfreeze_filesystem(volume.get('host'),volume.get('mountpoint'))
+        print ("Crash consistent storage snapshot " + snapname.get('name') + " created")
 except Exception as e:
     print(e)
-    if saphana_backup_id is not None:
+    if saphana_backup_id is not None and crashconsistent == False:
         print("Abandoning storage snapshot with SAP HANA Backup ID : " + str(saphana_backup_id))
         abandon_saphana_storage_snapshot(saphana_backup_id, "no_value")
     

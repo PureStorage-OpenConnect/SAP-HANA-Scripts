@@ -273,7 +273,7 @@ function Get-VolumeSerialNumber()
         $OSUser,
         $OSPassword
     )
-    $Cred = New-Object –TypeName System.Management.Automation.PSCredential –ArgumentList $OSUser, $OSPassword
+    $Cred = New-Object ï¿½TypeName System.Management.Automation.PSCredential ï¿½ArgumentList $OSUser, $OSPassword
           
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
@@ -302,7 +302,7 @@ function Get-HostAttachedVolume()
         $OSPassword
     )
   
-    $Cred = New-Object –TypeName System.Management.Automation.PSCredential –ArgumentList $OSUser, $OSPassword
+    $Cred = New-Object ï¿½TypeName System.Management.Automation.PSCredential ï¿½ArgumentList $OSUser, $OSPassword
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
@@ -455,7 +455,7 @@ function FreezeFileSystem()
         $OSPassword,
         $FilesystemMount
     )
-    $Cred = New-Object –TypeName System.Management.Automation.PSCredential –ArgumentList $OSUser, $OSPassword
+    $Cred = New-Object ï¿½TypeName System.Management.Automation.PSCredential ï¿½ArgumentList $OSUser, $OSPassword
           
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
@@ -475,7 +475,7 @@ function UnFreezeFileSystem()
         $OSPassword,
         $FilesystemMount
     )
-    $Cred = New-Object –TypeName System.Management.Automation.PSCredential –ArgumentList $OSUser, $OSPassword
+    $Cred = New-Object ï¿½TypeName System.Management.Automation.PSCredential ï¿½ArgumentList $OSUser, $OSPassword
           
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
@@ -644,7 +644,7 @@ if(Check-ForPrerequisites)
         
         #Check if the log and data volumes are already apart of a protection group in a host group
 
-        $PGName = "SAPHANA-" +$DatabaseName + "-CrashConsistent"
+        $PGName = "SAPHANA-" + $DatabaseName + "-CrashConsistency"
 
         $Persistence = Check-PureStoragePG -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser -Password $PureFlashArrayPassword -PersistenceInfo $Persistence -PGName $PGName
 
