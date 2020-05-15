@@ -3,7 +3,6 @@ import argparse
 import paramiko
 import re
 import purestorage
-import copy
 from hdbcli import dbapi
 from datetime import datetime
 

@@ -58,21 +58,21 @@ If this is not wspecified the snapshot will be created as application consistent
 New-StorageSnapshot -HostAddress <IP address of host> 
 -InstanceNumber <Instance Number (00)> -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> 
 -OperatingSystemUser <OS-User> -PureFlashArrayAddress <Pure FlashArray IP or hostname>
- -PureFlashArrayUser <pure FA User> -DatabasePort <Port>
+ -PureFlashArrayUser <pure FA User> -DatabasePort <Port> -DomainName <DomainName>
 Create a snapshot without entering information for the password fields
 
 .Example
 New-StorageSnapshot -HostAddress <IP address of host> -InstanceNumber <Instance Number (00)>
  -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> -DatabasePassword <DBPassword> 
 -OperatingSystemUser <OS-User> -OperatingSystemPassword <OSPassword> -PureFlashArrayAddress <Pure FlashArray IP or hostname> 
--PureFlashArrayUser <pure FA User> -PureFlashArrayPassword <Pure FA Password> -DatabasePort <Port>
+-PureFlashArrayUser <pure FA User> -PureFlashArrayPassword <Pure FA Password> -DatabasePort <Port> -DomainName <DomainName>
 Create a snapshot with all of the password fields being shown as plaintext 
 
 .Example
 New-StorageSnapshot -HostAddress <IP address of host> 
 -InstanceNumber <Instance Number (00)> -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> 
 -OperatingSystemUser <OS-User> -PureFlashArrayAddress <Pure FlashArray IP or hostname>
- -PureFlashArrayUser <pure FA User> -DatabasePort <Port> -CrashConsistent
+ -PureFlashArrayUser <pure FA User> -DatabasePort <Port> -DomainName <DomainName> -CrashConsistent
 Create a crash consistent snapshot without entering information for the password fields
 
 #>
