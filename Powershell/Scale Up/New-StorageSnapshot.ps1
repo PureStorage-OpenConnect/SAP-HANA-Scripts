@@ -5,7 +5,7 @@ AUTHOR: Andrew Sillifant
 Website: https://www.purestorage.com/
 Version: 0.2
 CREATED: 2020/07/04
-LASTEDIT: 2020/11/05
+LASTEDIT: 2020/30/05
 
  .Synopsis
 Provides and easy to use single command for the creating of application consistent 
@@ -91,19 +91,19 @@ Param(
     [string]$DatabaseName,
     [parameter(Mandatory=$True)]
     [string]$DatabaseUser,
-    [Parameter(Mandatory=$True)]
-    $DatabasePassword,
     [Parameter(Mandatory=$False)]
+    $DatabasePassword,
+    [Parameter(Mandatory=$True)]
     $DatabasePort,
     [parameter(Mandatory=$True)]
     [string]$OperatingSystemUser,
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
     $OperatingSystemPassword,
     [parameter(Mandatory=$True)]
     [string]$PureFlashArrayAddress,
     [parameter(Mandatory=$True)]
     [string]$PureFlashArrayUser,
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
     $PureFlashArrayPassword,
     [Parameter(Mandatory=$False)]
     [switch]$CrashConsistentSnapshot
@@ -128,14 +128,6 @@ function AskInSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]
 
 function Check-Arguments()
 {
-    if ($InstanceNumber -eq "" -and $InstanceNumber -eq [String]::Empty) 
-    {
-        $InstanceNumber = "00"
-    }
-    if ($DatabasePort -eq "" -and $DatabasePort -eq [String]::Empty) 
-    {
-        $InstanceNumber = "15"
-    }
     if ($DatabasePassword -ne $null) 
     {
         $script:DatabasePassword = $DatabasePassword 
@@ -171,6 +163,7 @@ function Check-Arguments()
 $SnapshotTime = "{0:yyyy-MM-dd HH:mm:ss}" -f (get-date)
 $GetSAPAHANASystemType = "SELECT VALUE FROM M_INIFILE_CONTENTS WHERE FILE_NAME = 'global.ini' `
 AND SECTION = 'multidb' AND KEY = 'mode'"
+$GetSAPHANAInstanceID = "SELECT VALUE from SYS.M_SYSTEM_OVERVIEW WHERE NAME = 'Instance ID'"
 $GetDataVolumeLocation = "SELECT VALUE FROM M_INIFILE_CONTENTS WHERE FILE_NAME = 'global.ini' `
 AND SECTION = 'persistence' AND KEY = 'basepath_datavolumes'  AND VALUE NOT LIKE '$%'"
 $GetPersistenceVolumesLocation = "SELECT VALUE,KEY FROM M_INIFILE_CONTENTS WHERE FILE_NAME = 'global.ini'
@@ -179,8 +172,6 @@ $CreateHDBStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CREATE SNAPSHOT COMMENT
 $SnapshotTime +"';"
 $RetrieveHDBSnapshotID = "SELECT BACKUP_ID, COMMENT FROM M_BACKUP_CATALOG WHERE ENTRY_TYPE_NAME `
 = 'data snapshot' AND STATE_NAME = 'prepared' AND COMMENT = 'SNAPSHOT-" + $SnapshotTime +"';"
-$hdbConnectionString = "Driver={HDBODBC};ServerNode=" + $HostAddress + ":3" + $InstanceNumber `
-+ $DatabasePort + ";UID=" + $DatabaseUser + ";PWD=" + $DatabasePassword +";"
 $multiDB = $false
 
   
@@ -189,13 +180,17 @@ function Check-ForPrerequisites()
     $hdbODBCCheck =  Get-OdbcDriver | Where-Object Name -EQ 'HDBODBC'
     if($hdbODBCCheck -eq $null)
     {
-        Write-Host "Please install the SAP HANA client for microsoft windows"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|       Please install the SAP HANA client       |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         return $false
     }
     else
     {
         if( $PSVersiontable.PSVersion.Major -lt 3) {
-            Write-Error  "This script requires minimum of PowerShell v3.0" 
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
+            Write-host "`t`t|This script requires minimum of PowerShell v3.0 |" -ForegroundColor Red
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
             return $false
         }
         else
@@ -214,12 +209,17 @@ function Check-ForPOSH-SSH()
     $poshSSHCHeck = Get-Module -Name Posh-SSH
     if($poshSSHCHeck -eq $null)
     {
-        Write-Host "Installing POSH-SSH"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|              Installing POSH-SSH               |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Install-Module -Name Posh-SSH   
     }
     else
     {
-        Write-Host "POSH-SSH already installed"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|           POSH-SSH already installed           |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+
     }
     Import-Module Posh-SSH
 }
@@ -230,12 +230,16 @@ function Check-ForPureStorageSDK()
     $pureSTorageSDKCheck = Get-Module -Name PureStoragePowerShellSDK
     if($pureSTorageSDKCheck -eq $null)
     {
-        Write-Host "Installing Pure Storage Powershell toolkit"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|     Installing Pure Storage Powershell SDK     |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Install-Module PureStoragePowerShellSDK
     }
     else
     {
-        Write-Host "Pure Storage Powershell toolkit already installed"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|  Pure Storage Powershell SDK already installed |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
     }
     Import-Module PureStoragePowerShellSDK
 }
@@ -270,7 +274,7 @@ function Get-VolumeSerialNumber()
         $OSUser,
         $OSPassword
     )
-    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $script:OperatingSystemPassword
+    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $OSPassword
           
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
@@ -307,15 +311,24 @@ function Create-PureStorageVolumeSnapshot()
     {
         if($serialNumber.Contains($vol.serial.tolower()))
         {
-            Write-Host "Volume located, creating snapshot"
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|        Volume located , creating snapshot      |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
             $VolumeSnapshot = New-PfaVolumeSnapshots -Array $Array -Sources $vol.name -Suffix $SnapshotSuffix
             if(!($VolumeSnapshot.name -eq $null))
             {
-                Write-host "Snapshot name : " $VolumeSnapshot.name 
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                Write-host "`t`t|                   Snapshot name :              |" -ForegroundColor White
+                Write-host "`t`t      "           $VolumeSnapshot.name                  -ForegroundColor White
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+
                 return $VolumeSnapshot.serial
             }
             else
             {
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
+                Write-host "`t`t|           Volume has not been found            |" -ForegroundColor Red
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
                 return $null
             }
         }
@@ -390,7 +403,7 @@ function Check-PureStoragePG()
   
 function Create-SAPHANADatabaseSnapshot()
 {
-    Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql $CreateHDBStorageSnapshot
+    $output = Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql $CreateHDBStorageSnapshot
     $hdbSnapshot = Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql $RetrieveHDBSnapshotID
     return $hdbSnapshot
 }
@@ -403,7 +416,7 @@ function FreezeFileSystem()
         $OSPassword,
         $FilesystemMount
     )
-    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $script:OperatingSystemPassword
+    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $OSPassword
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
@@ -422,7 +435,7 @@ function UnFreezeFileSystem()
         $OSPassword,
         $FilesystemMount
     )
-    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $script:OperatingSystemPassword
+    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $OSPassword
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
@@ -459,62 +472,76 @@ function Confirm-SAPHANADatabaseSnapshot()
 if(Check-ForPrerequisites)
 {
     Check-Arguments
+    $hdbConnectionString = "Driver={HDBODBC};ServerNode=" + $HostAddress + ":3" + $InstanceNumber `
+    + $DatabasePort + ";UID=" + $DatabaseUser + ";PWD=" + $script:DatabasePassword +";"
     ##Check the SAP HANA system type for multiDB or single tenant DB
     $SystemType = Check-SAPHANASystemType
     if($SystemType.VALUE -eq 'multidb')
     {
         $hdbConnectionString = "Driver={HDBODBC};ServerNode=" + $HostAddress + ":3" + `
-        $InstanceNumber + "13;UID=" + $DatabaseUser + ";PWD=" + $DatabasePassword +";"
+        $InstanceNumber + "13;UID=" + $DatabaseUser + ";PWD=" + $script:DatabasePassword +";"
         $multiDB = $true
     }
     if(!$CrashConsistentSnapshot)
     {
         ##Get the volume serial number 
+        $instanceID =  Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql $GetSAPHANAInstanceID
         $ShortMountPath = ((Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql `
-        $GetDataVolumeLocation).VALUE).Replace("/" + $DatabaseName,"")
+        $GetDataVolumeLocation).VALUE).Replace("/" + $instanceID.VALUE,"")
         $SerialNumber =  Get-VolumeSerialNumber -HostAddress $HostAddress -OSUser $OperatingSystemUser `
-        -OSPassword $OperatingSystemPassword -DataVolumeMountPoint $ShortMountPath
+        -OSPassword $script:OperatingSystemPassword -DataVolumeMountPoint $ShortMountPath
 
         ##Prepare HANA Storage Snapshot
-        Write-Host "Preparing SAP HANA Snapshot"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|          Preparing SAP HANA Data Snapshot      |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         $HANASnapshot = Create-SAPHANADatabaseSnapshot 
 
         ##Freeze the filesystem
-        Write-Host "Freezing filesystem"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|                Freezing filesystem             |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         FreezeFileSystem -HostAddress $HostAddress -OSUser $OperatingSystemUser -OSPassword `
-        $OperatingSystemPassword -FilesystemMount $ShortMountPath
+        $script:OperatingSystemPassword -FilesystemMount $ShortMountPath
 
 
         ##Create Pure Volume Snapshot
         $SnapshotSuffix = "SAPHANA-" + $HANASnapshot.BACKUP_ID.ToString()
         $EBID = Create-PureStorageVolumeSnapshot -FlashArrayAddress $PureFlashArrayAddress -User `
-        $PureFlashArrayUser -Password $PureFlashArrayPassword -SerialNumber $serialNumber -SnapshotSuffix $SnapshotSuffix
+        $PureFlashArrayUser -Password $script:PureFlashArrayPassword -SerialNumber $serialNumber -SnapshotSuffix $SnapshotSuffix
         ##Unfreeze the filesystem
-        Write-Host "Unfreezing filesystem"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|              UnFreezing filesystem             |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         UnFreezeFileSystem -HostAddress $HostAddress -OSUser $OperatingSystemUser -OSPassword `
-        $OperatingSystemPassword -FilesystemMount $ShortMountPath
+        $script:OperatingSystemPassword -FilesystemMount $ShortMountPath
         if(!($EBID -eq $null))
         {
-            Write-Host "Confirming Snapshot"
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|              Confirming Snapshot               |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
             Confirm-SAPHANADatabaseSnapshot -BackupID $HANASnapshot.BACKUP_ID.ToString() -EBID $EBID
         }
         else
         {
-            Write-Host "Abandoning Snapshot"
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|              Abandoning Snapshot               |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
             Abandon-SAPHANADatabaseSnapshot -BackupID $HANASnapshot.BACKUP_ID.ToString() -EBID $EBID
         }
     }
     else
     {
         $devices = (Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql $GetPersistenceVolumesLocation)
+        $instanceID =  Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql $GetSAPHANAInstanceID
         $Persistence = @()
         foreach($d in  $devices)
         {
             $persistenceObj = New-Object -TypeName PSObject
 
-            $ShortMountPath = ($d.VALUE).Replace("/" + $DatabaseName,"")
+            $ShortMountPath = ($d.VALUE).Replace("/" + $instanceID.VALUE,"")
             $SerialNumber =  Get-VolumeSerialNumber -HostAddress $HostAddress -OSUser $OperatingSystemUser `
-            -OSPassword $OperatingSystemPassword -DataVolumeMountPoint $ShortMountPath
+            -OSPassword $script:OperatingSystemPassword -DataVolumeMountPoint $ShortMountPath
             $persistenceObj | Add-Member -MemberType NoteProperty -Name MountPoint -Value $ShortMountPath
             $persistenceObj | Add-Member -MemberType NoteProperty -Name SerialNumber -Value $SerialNumber
             $Persistence += $persistenceObj
@@ -525,25 +552,36 @@ if(Check-ForPrerequisites)
 
         $PGName = "SAPHANA-" + $DatabaseName + "-CrashConsistency"
 
-        $Persistence = Check-PureStoragePG -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser -Password $PureFlashArrayPassword -PersistenceInfo $Persistence -PGName $PGName
+        $Persistence = Check-PureStoragePG -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
+        -Password $script:PureFlashArrayPassword -PersistenceInfo $Persistence -PGName $PGName
 
 
         ##Freeze the filesystem
         foreach($p in $Persistence)
         {
-            Write-Host "Freezing filesystem for " $p.MountPoint
+            
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|     Freezing filesystem for " $p.MountPoint"       " -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
             FreezeFileSystem -HostAddress $HostAddress -OSUser $OperatingSystemUser -OSPassword `
-            $OperatingSystemPassword -FilesystemMount $p.MountPoint
+            $script:OperatingSystemPassword -FilesystemMount $p.MountPoint
         }
 
-        Write-Host "Creating Crash Consistent Snapshot"
-        $PGSnap = Create-PureStoragePGSnapshot -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser -Password $PureFlashArrayPassword -PGName $PGName
-        Write-Host $PGSnap.name " created for SAP HANA Database " $DatabaseName
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|        Creating Crash Consistent Snapshot      |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        $PGSnap = Create-PureStoragePGSnapshot -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
+        -Password $script:PureFlashArrayPassword -PGName $PGName
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t| "$PGSnap.name " created              " -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         foreach($p in $Persistence)
         {
-            Write-Host "Unfreezing filesystem for " $p.MountPoint
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|     UnFreezing filesystem for " $p.MountPoint"  " -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
             UnFreezeFileSystem -HostAddress $HostAddress -OSUser $OperatingSystemUser -OSPassword `
-            $OperatingSystemPassword -FilesystemMount $p.MountPoint
+            $script:OperatingSystemPassword -FilesystemMount $p.MountPoint
         }
     }
 }

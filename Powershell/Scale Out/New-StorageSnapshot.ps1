@@ -82,27 +82,27 @@ Create a crash consistent snapshot without entering information for the password
 ################################
 
 Param(
-    [parameter(Mandatory=$false)]
+    [parameter(Mandatory=$true)]
     [string[]]$HostAddresses,
-    [parameter(Mandatory=$false)]
+    [parameter(Mandatory=$true)]
     [string]$DomainName,
-    [parameter(,Mandatory=$false)]
+    [parameter(,Mandatory=$true)]
     [string]$InstanceNumber,
-    [parameter(Mandatory=$false)]
+    [parameter(Mandatory=$true)]
     [string]$DatabaseName,
-    [parameter(Mandatory=$false)]
+    [parameter(Mandatory=$true)]
     [string]$DatabaseUser,
     [Parameter(Mandatory=$False)]
     $DatabasePassword ,
     [Parameter(Mandatory=$False)]
     $DatabasePort,
-    [parameter(Mandatory=$false)]
+    [parameter(Mandatory=$true)]
     [string]$OperatingSystemUser,
     [Parameter(Mandatory=$False)]
     $OperatingSystemPassword,
-    [parameter(Mandatory=$false)]
+    [parameter(Mandatory=$true)]
     [string]$PureFlashArrayAddress,
-    [parameter(Mandatory=$false)]
+    [parameter(Mandatory=$true)]
     [string]$PureFlashArrayUser,
     [Parameter(Mandatory=$False)]
     $PureFlashArrayPassword,
@@ -273,7 +273,7 @@ function Get-VolumeSerialNumber()
         $OSUser,
         $OSPassword
     )
-    $Cred = New-Object �TypeName System.Management.Automation.PSCredential �ArgumentList $OSUser, $OSPassword
+    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $OSPassword
           
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
@@ -302,7 +302,7 @@ function Get-HostAttachedVolume()
         $OSPassword
     )
   
-    $Cred = New-Object �TypeName System.Management.Automation.PSCredential �ArgumentList $OSUser, $OSPassword
+    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $OSPassword
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
@@ -455,7 +455,7 @@ function FreezeFileSystem()
         $OSPassword,
         $FilesystemMount
     )
-    $Cred = New-Object �TypeName System.Management.Automation.PSCredential �ArgumentList $OSUser, $OSPassword
+    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $OSPassword
           
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId
@@ -475,7 +475,7 @@ function UnFreezeFileSystem()
         $OSPassword,
         $FilesystemMount
     )
-    $Cred = New-Object �TypeName System.Management.Automation.PSCredential �ArgumentList $OSUser, $OSPassword
+    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $OSPassword
           
     $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
     $session = Get-SSHSession -SessionId $sessionval.SessionId

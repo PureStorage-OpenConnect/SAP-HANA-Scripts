@@ -96,8 +96,6 @@ def execute_saphana_command(command, port_number):
     else:
             print("Database connection not possible")
 
-
-
 def check_saphana_system_type():
     hdbsqlCheckSAPHANASystemType = "SELECT VALUE FROM M_INIFILE_CONTENTS WHERE \
         FILE_NAME = 'global.ini' AND SECTION = 'multidb' AND KEY = 'mode'"
