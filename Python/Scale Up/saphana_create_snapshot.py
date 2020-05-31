@@ -3,7 +3,6 @@ import argparse
 import paramiko
 import re
 import purestorage
-import copy
 from hdbcli import dbapi
 from datetime import datetime
 
@@ -36,7 +35,7 @@ parser.add_argument('-fap','--flasharraypassword', help='Password for the user w
     permissions to create a volume snapshot on FlashArray', required=True)
 parser.add_argument('-cc','--crashconsistent', action="store_false", default=None,\
      help='Create a crash consistent snapshot in a protection group',required=False)   
-parser.add_argument('--version', action='version', version='%(prog)s 0.2')
+parser.add_argument('--version', action='version', version='%(prog)s 0.3')
 
 args = parser.parse_args()
 
@@ -94,8 +93,6 @@ def execute_saphana_command(command, port_number):
     else:
             print("Database connection not possible")
 
-
-
 def check_saphana_system_type():
     hdbsqlCheckSAPHANASystemType = "SELECT VALUE FROM M_INIFILE_CONTENTS WHERE FILE_NAME \
         = 'global.ini' AND SECTION = 'multidb' AND KEY = 'mode'"
@@ -106,6 +103,11 @@ def check_saphana_system_type():
     else:
         multidb = False
         return multidb
+
+def get_saphana_instanceid():
+    hdbsqlGetSAPHANAInstanceID = "SELECT VALUE from SYS.M_SYSTEM_OVERVIEW WHERE NAME = 'Instance ID'"
+    instanceid =  execute_saphana_command(hdbsqlGetSAPHANAInstanceID,port)
+    return instanceid
 
 def prepare_ssh_connection():
     sshclient = paramiko.SSHClient()
@@ -206,8 +208,9 @@ def get_saphana_data_volume_mount():
     hdbGetHANADataVolumeMount = "SELECT VALUE FROM M_INIFILE_CONTENTS WHERE FILE_NAME = \
         'global.ini' AND SECTION = 'persistence' AND KEY = 'basepath_datavolumes'  AND VALUE NOT LIKE '$%'"
     data_volume = execute_saphana_command(hdbGetHANADataVolumeMount, port)
+    instanceid = get_saphana_instanceid()
     data_volume = data_volume[0].column_values
-    data_volume = str(data_volume[0]).replace("/" + databasename, "")
+    data_volume = str(data_volume[0]).replace("/" + str(instanceid[0].column_values[0]), "")
     return data_volume
 
 def get_volume_name(serialno):
@@ -226,10 +229,11 @@ def get_persistence_volumes_location():
         AND SECTION = 'persistence' AND (KEY = 'basepath_datavolumes' OR KEY = 'basepath_logvolumes') \
         AND VALUE NOT LIKE '$%'"
     persistenceVolumes = execute_saphana_command(hdbGetPersistenceVolumesLocation, port)
+    instanceid = get_saphana_instanceid()
     volumes = []
     for item in persistenceVolumes:
         mount = item.column_values[0]
-        mount = str(mount).replace("/" + databasename, "")
+        mount = str(mount).replace("/" + str(instanceid[0].column_values[0]), "")
         serialNumber = get_volume_serialno(mount)
         volname = get_volume_name(serialNumber)
         if (volname == False):
@@ -258,7 +262,7 @@ try:
         saphana_backup_id = prepare_saphana_storage_snapshot()
         freeze_filesystem(data_volume)
         volume_snapshot_id = create_flasharray_volume_snapshot(get_volume_serialno(data_volume), \
-            "SAP-HANA-Backup-ID-" + str(saphana_backup_id))
+             "SAPHANA-" + str(saphana_backup_id))
         print("Volume Snapshot serial number : " + str(volume_snapshot_id))
         unfreeze_filesystem(data_volume)
         if saphana_backup_id is not None and volume_snapshot_id is not None:
