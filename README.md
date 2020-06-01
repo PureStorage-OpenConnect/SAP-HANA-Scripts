@@ -120,3 +120,5 @@ Running this script with the arguments will bring up an interactive ASCII menu ,
 
 `saphana_recoverfrom_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --overwritevolume`
 
+## Known Issues
+ - POSH-SSH returns issues with Renci.SshNet - use the workaround proposed in the comment - https://github.com/darkoperator/Posh-SSH/issues/284#issuecomment-531736793
