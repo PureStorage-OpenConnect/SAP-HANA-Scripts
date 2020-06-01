@@ -137,7 +137,10 @@ function AskSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]$B
 
 function AskInSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]$Background="Blue") {
     Write-Host $Question -ForegroundColor $Foreground -BackgroundColor $Background -NoNewLine
-    Return (Read-Host)
+    $plainTextEncrypted = Read-Host -AsSecureString
+    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($plainTextEncrypted)
+    $plaintext = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    return $plaintext
 }
 
 function Check-Arguments()
@@ -518,7 +521,8 @@ function Restore-SystemDB()
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
     Start-Sleep -Seconds 5
     do{$output = $stream.read()}while($stream.DataAvailable)
-    $recoverSystemDBString = "HDBSettings.sh /usr/sap/" + $SID + "/HDB" + $InstanceNumber + "/exe/python_support/recoverSys.py --command=""RECOVER DATA  USING SNAPSHOT  CLEAR LOG"""
+    $recoverSystemDBString = "/usr/sap/" + $SID.VALUE + "/HDB" + $InstanceNumber + "/HDBSettings.sh /usr/sap/" + $SID.VALUE + `
+    "/HDB" + $InstanceNumber + "/exe/python_support/recoverSys.py --command=""RECOVER DATA  USING SNAPSHOT  CLEAR LOG"""
     $stream.WriteLine($recoverSystemDBString)
     Start-Sleep -Seconds 1
     do{$output = $stream.read();Start-Sleep -Milliseconds 500}while($stream.DataAvailable)
