@@ -123,7 +123,10 @@ function AskSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]$B
 
 function AskInSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]$Background="Blue") {
     Write-Host $Question -ForegroundColor $Foreground -BackgroundColor $Background -NoNewLine
-    Return (Read-Host)
+    $plainTextEncrypted = Read-Host -AsSecureString
+    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($plainTextEncrypted)
+    $plaintext = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    return $plaintext
 }
 
 function Check-Arguments()
