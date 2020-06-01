@@ -608,9 +608,9 @@ if(Check-ForPrerequisites)
 	    Write-Host "`t`t | SAP HANA Backup Catalog : Data Snapshots |"
         Write-Host "`t`t |      Select a Catalog ID to restore      |"
         Write-Host "`t`t  ------------------------------------------ "  
-        Write-Host "`t -------------`t      ---------- `t`t  ------"
-        Write-Host "`t | Catalog ID | `t | BackupID | `t`t | Date |"
-        Write-Host "`t -------------`t      ---------- `t`t  ------"
+        Write-Host "`t  ------------  `t `t    ---------- `t`t  ------"
+        Write-Host "`t | Catalog ID | `t `t   | BackupID |`t`t | Date |"
+        Write-Host "`t  ------------  `t `t    ---------- `t`t  ------"
 
     
         for($i = $startValue; $i -lt $OneTimeList;$i++)
