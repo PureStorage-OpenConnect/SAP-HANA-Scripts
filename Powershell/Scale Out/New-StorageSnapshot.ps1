@@ -181,13 +181,6 @@ $RetrieveHDBSnapshotID = "SELECT BACKUP_ID, COMMENT FROM M_BACKUP_CATALOG WHERE 
 = 'data snapshot' AND STATE_NAME = 'prepared' AND COMMENT = 'SNAPSHOT-" + $SnapshotTime +"';"
 $RetrieveSystemDBLocation = "SELECT HOST FROM SYS.M_SERVICES WHERE DETAIL = 'master' AND SERVICE_NAME `
 = 'nameserver'"
-$hdbConnectionString = "Driver={HDBODBC};ServerNode="
-foreach($shhost in $HostAddresses)
-{
-    $hdbConnectionString = $hdbConnectionString + $shhost + ":3" + $InstanceNumber + $DatabasePort + ","
-}
-$hdbConnectionString = $hdbConnectionString -replace ".{1}$"
-$hdbConnectionString = $hdbConnectionString + ";UID=" + $DatabaseUser + ";PWD=" + $DatabasePassword +";"
 $multiDB = $false
 
 function Check-ForPrerequisites()
@@ -195,13 +188,17 @@ function Check-ForPrerequisites()
     $hdbODBCCheck =  Get-OdbcDriver | Where-Object Name -EQ 'HDBODBC'
     if($hdbODBCCheck -eq $null)
     {
-        Write-Host "Please install the SAP HANA client for microsoft windows"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|       Please install the SAP HANA client       |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         return $false
     }
     else
     {
         if( $PSVersiontable.PSVersion.Major -lt 3) {
-            Write-Error  "This script requires minimum of PowerShell v3.0" 
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
+            Write-host "`t`t|This script requires minimum of PowerShell v3.0 |" -ForegroundColor Red
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
             return $false
         }
         else
@@ -220,12 +217,17 @@ function Check-ForPOSH-SSH()
     $poshSSHCHeck = Get-Module -Name Posh-SSH
     if($poshSSHCHeck -eq $null)
     {
-        Write-Host "Installing POSH-SSH"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|              Installing POSH-SSH               |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Install-Module -Name Posh-SSH   
     }
     else
     {
-        Write-Host "POSH-SSH already installed"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|           POSH-SSH already installed           |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+
     }
     Import-Module Posh-SSH
 }
@@ -236,12 +238,16 @@ function Check-ForPureStorageSDK()
     $pureSTorageSDKCheck = Get-Module -Name PureStoragePowerShellSDK
     if($pureSTorageSDKCheck -eq $null)
     {
-        Write-Host "Installing Pure Storage Powershell toolkit"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|     Installing Pure Storage Powershell SDK     |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Install-Module PureStoragePowerShellSDK
     }
     else
     {
-        Write-Host "Pure Storage Powershell toolkit already installed"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|  Pure Storage Powershell SDK already installed |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
     }
     Import-Module PureStoragePowerShellSDK
 }
@@ -366,7 +372,13 @@ function Create-PureStorageVolumeSnapshot()
             }
             else
             {
-                return $null
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                Write-host "`t`t|                   Snapshot name :              |" -ForegroundColor White
+                Write-host "`t`t      "           $VolumeSnapshot.name                  -ForegroundColor White
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
+                Write-host "`t`t|           Volume has not been found            |" -ForegroundColor Red
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
             }
         }
     }
@@ -517,6 +529,13 @@ function Confirm-SAPHANADatabaseSnapshot()
 if(Check-ForPrerequisites)
 {
     Check-Arguments
+    $hdbConnectionString = "Driver={HDBODBC};ServerNode="
+    foreach($shhost in $HostAddresses)
+    {
+        $hdbConnectionString = $hdbConnectionString + $shhost + ":3" + $InstanceNumber + $DatabasePort + ","
+    }
+    $hdbConnectionString = $hdbConnectionString -replace ".{1}$"
+    $hdbConnectionString = $hdbConnectionString + ";UID=" + $DatabaseUser + ";PWD=" + $DatabasePassword +";"
     ##Check the SAP HANA system type for multiDB or single tenant DB
     $SystemType = Check-SAPHANASystemType
     if($SystemType.VALUE -eq 'multidb')
@@ -556,12 +575,16 @@ if(Check-ForPrerequisites)
 
 
         ##Prepare HANA Storage Snapshot
-        Write-Host "Preparing SAP HANA Snapshot"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|          Preparing SAP HANA Data Snapshot      |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         $HANASnapshot = Create-SAPHANADatabaseSnapshot 
         Start-Sleep -Seconds 5
 
         ##Freeze the filesystems
-        Write-Host "Freezing filesystems"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|                Freezing filesystem             |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         foreach($shhost in $IsolatedHostsAndStorage)
         {
             FreezeFileSystem -HostAddress $shhost.HOST_IP -OSUser $OperatingSystemUser -OSPassword $OperatingSystemPassword -FilesystemMount $shhost.PATH
@@ -579,7 +602,9 @@ if(Check-ForPrerequisites)
         }
        
         ##Unfreeze the filesystems
-        Write-Host "Unfreezing filesystems"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|              UnFreezing filesystem             |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         foreach($shhost in $IsolatedHostsAndStorage)
         {
             UnFreezeFileSystem -HostAddress $shhost.HOST_IP -OSUser $OperatingSystemUser -OSPassword $OperatingSystemPassword -FilesystemMount $shhost.PATH
@@ -602,13 +627,17 @@ if(Check-ForPrerequisites)
 
         if($countserials -eq $IsolatedHostsAndStorage.Count)
         {
-            Write-Host "Confirming Snapshot"
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|              Confirming Snapshot               |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
             $EBID = $EBID -replace ".{1}$"
             Confirm-SAPHANADatabaseSnapshot -BackupID $HANASnapshot.BACKUP_ID.ToString() -EBID "ScaleOut"
         }
         else
         {
-            Write-Host "Abandoning Snapshot"
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|              Abandoning Snapshot               |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
             Abandon-SAPHANADatabaseSnapshot -BackupID $HANASnapshot.BACKUP_ID.ToString() -EBID "ScaleOut"
         }
     }
@@ -655,17 +684,25 @@ if(Check-ForPrerequisites)
         ##Freeze the filesystem
         foreach($p in $Persistence)
         {
-            Write-Host "Freezing filesystem for " $p.MountPoint
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|     Freezing filesystem for " $p.MountPoint"       " -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
             FreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
             $OperatingSystemPassword -FilesystemMount $p.MountPoint
         }
 
-        Write-Host "Creating Crash Consistent Snapshot"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|        Creating Crash Consistent Snapshot      |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         $PGSnap = Create-PureStoragePGSnapshot -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser -Password $PureFlashArrayPassword -PGName $PGName
-        Write-Host $PGSnap.name " created for SAP HANA Database " $DatabaseName
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t| "$PGSnap.name " created              " -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         foreach($p in $Persistence)
         {
-            Write-Host "Unfreezing filesystem for " $p.MountPoint
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|     UnFreezing filesystem for " $p.MountPoint"  " -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
             UnFreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
             $OperatingSystemPassword -FilesystemMount $p.MountPoint
         }
