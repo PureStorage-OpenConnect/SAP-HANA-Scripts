@@ -478,16 +478,17 @@ function Restore-CopySnapToVolume()
                     $session = Get-SSHSession -SessionId $sessionval.SessionId
                     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
                     Start-Sleep -Seconds 1
-                    do{$output += start-sleep -Milliseconds 250;$stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
+                    do{start-sleep -Milliseconds 250;$output += $stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
                     $rescanStorageStringRemove = "rescan-scsi-bus.sh -r" 
                     $stream.writeline($rescanStorageStringRemove)
-                    do{$output += start-sleep -Milliseconds 250;$stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
+                    do{start-sleep -Milliseconds 250;$output += $stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
+                    Start-Sleep -Seconds 10
                     #connect copy data volume 
                     $connectHost = New-PfaHostVolumeConnection -Array $Array -VolumeName $newVolFromCopy.name -HostName $hostobj.name
                     #Operating system add new device map
                     $rescanStorageStringAdd = "rescan-scsi-bus.sh -a" 
                     $stream.writeline($rescanStorageStringAdd)
-                    do{$output += start-sleep -Milliseconds 250;$stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
+                    do{start-sleep -Milliseconds 250;$output += $stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
                     Start-Sleep -Seconds 10
                     $deviceMountString = "mount /dev/mapper/3624a9370" + $newVolFromCopy.serial.ToLower() + " " + $DataVolumeMountPoint
                     $stream.writeline($deviceMountString)
