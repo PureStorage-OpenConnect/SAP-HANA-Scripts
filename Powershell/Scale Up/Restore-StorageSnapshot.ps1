@@ -137,7 +137,10 @@ function AskSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]$B
 
 function AskInSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]$Background="Blue") {
     Write-Host $Question -ForegroundColor $Foreground -BackgroundColor $Background -NoNewLine
-    Return (Read-Host)
+    $plainTextEncrypted = Read-Host -AsSecureString
+    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($plainTextEncrypted)
+    $plaintext = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    return $plaintext
 }
 
 function Check-Arguments()
@@ -475,16 +478,17 @@ function Restore-CopySnapToVolume()
                     $session = Get-SSHSession -SessionId $sessionval.SessionId
                     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
                     Start-Sleep -Seconds 1
-                    do{$output += start-sleep -Milliseconds 250;$stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
+                    do{start-sleep -Milliseconds 250;$output += $stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
                     $rescanStorageStringRemove = "rescan-scsi-bus.sh -r" 
                     $stream.writeline($rescanStorageStringRemove)
-                    do{$output += start-sleep -Milliseconds 250;$stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
+                    do{start-sleep -Milliseconds 250;$output += $stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
+                    Start-Sleep -Seconds 10
                     #connect copy data volume 
                     $connectHost = New-PfaHostVolumeConnection -Array $Array -VolumeName $newVolFromCopy.name -HostName $hostobj.name
                     #Operating system add new device map
                     $rescanStorageStringAdd = "rescan-scsi-bus.sh -a" 
                     $stream.writeline($rescanStorageStringAdd)
-                    do{$output += start-sleep -Milliseconds 250;$stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
+                    do{start-sleep -Milliseconds 250;$output += $stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
                     Start-Sleep -Seconds 10
                     $deviceMountString = "mount /dev/mapper/3624a9370" + $newVolFromCopy.serial.ToLower() + " " + $DataVolumeMountPoint
                     $stream.writeline($deviceMountString)
@@ -518,7 +522,8 @@ function Restore-SystemDB()
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
     Start-Sleep -Seconds 5
     do{$output = $stream.read()}while($stream.DataAvailable)
-    $recoverSystemDBString = "HDBSettings.sh /usr/sap/" + $SID + "/HDB" + $InstanceNumber + "/exe/python_support/recoverSys.py --command=""RECOVER DATA  USING SNAPSHOT  CLEAR LOG"""
+    $recoverSystemDBString = "/usr/sap/" + $SID.VALUE + "/HDB" + $InstanceNumber + "/HDBSettings.sh /usr/sap/" + $SID.VALUE + `
+    "/HDB" + $InstanceNumber + "/exe/python_support/recoverSys.py --command=""RECOVER DATA  USING SNAPSHOT  CLEAR LOG"""
     $stream.WriteLine($recoverSystemDBString)
     Start-Sleep -Seconds 1
     do{$output = $stream.read();Start-Sleep -Milliseconds 500}while($stream.DataAvailable)
@@ -608,9 +613,9 @@ if(Check-ForPrerequisites)
 	    Write-Host "`t`t | SAP HANA Backup Catalog : Data Snapshots |"
         Write-Host "`t`t |      Select a Catalog ID to restore      |"
         Write-Host "`t`t  ------------------------------------------ "  
-        Write-Host "`t -------------`t      ---------- `t`t  ------"
-        Write-Host "`t | Catalog ID | `t | BackupID | `t`t | Date |"
-        Write-Host "`t -------------`t      ---------- `t`t  ------"
+        Write-Host "`t  ------------  `t `t    ---------- `t`t  ------"
+        Write-Host "`t | Catalog ID | `t `t   | BackupID |`t`t | Date |"
+        Write-Host "`t  ------------  `t `t    ---------- `t`t  ------"
 
     
         for($i = $startValue; $i -lt $OneTimeList;$i++)
