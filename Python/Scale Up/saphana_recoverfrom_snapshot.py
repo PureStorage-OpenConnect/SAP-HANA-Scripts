@@ -38,7 +38,7 @@ parser.add_argument('-sp','--sidadmpassword',\
      help='<sid>adm password for the <sid>adm user ',required=True)
 parser.add_argument('-ov','--overwritevolume', action="store_false", default=None,\
      help='Overwrite the original SAP HANA volume with the snapshot',required=False)   
-parser.add_argument('--version', action='version', version='%(prog)s 0.3')
+parser.add_argument('--version', action='version', version='%(prog)s 0.4')
 
 args = parser.parse_args()
 
@@ -222,7 +222,7 @@ def restore_overwrite_volume(snapshot, mount_point, backupid, serialno):
             new_volume = array.copy_volume(snapshot.get("name"), volname, overwrite=True)
             #operating system rescan for new device 
             sshclient = prepare_ssh_connection()
-            rescan_scsi_bus_add_string = "rescan-scsi-bus.sh -a"
+            rescan_scsi_bus_add_string = "sudo rescan-scsi-bus.sh -a"
             stdin, stdout, stderr = sshclient.exec_command(rescan_scsi_bus_add_string)
             time.sleep(30)
             opt = stdout.readlines()
@@ -253,14 +253,14 @@ def restore_copyvolume(snapshot, mount_point, backupid, serialno):
                     array.disconnect_host(host.get("name"), volume.get("name"))
                     #operating system remove device maps
                     sshclient = prepare_ssh_connection()
-                    rescan_scsi_bus_remove_string = "rescan-scsi-bus.sh -r"
+                    rescan_scsi_bus_remove_string = "sudo rescan-scsi-bus.sh -r"
                     stdin, stdout, stderr = sshclient.exec_command(rescan_scsi_bus_remove_string)
                     time.sleep(30)
                     opt = stdout.readlines()
                     #connect new data volume to host
                     array.connect_host(host.get("name"), new_volume.get("name"))
                     #operating system rescan for new device 
-                    rescan_scsi_bus_add_string = "rescan-scsi-bus.sh -a"
+                    rescan_scsi_bus_add_string = "sudo rescan-scsi-bus.sh -a"
                     stdin, stdout, stderr = sshclient.exec_command(rescan_scsi_bus_add_string)
                     time.sleep(30)
                     opt = stdout.readlines()

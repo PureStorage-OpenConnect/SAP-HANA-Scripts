@@ -3,9 +3,9 @@
 NAME: Restore-StorageSnapshot
 AUTHOR: Andrew Sillifant
 Website: https://www.purestorage.com/
-Version: 0.1
+Version: 0.4
 CREATED: 2020/30/05
-LASTEDIT: 2020/30/05
+LASTEDIT: 2020/11/06
 
  .Synopsis
 Provides and easy to use mechanism to recover data snapshots for SAP HANA databases
@@ -51,6 +51,15 @@ The password for the user specified in PureFlashArrayUser
 
 .Parameter SIDADMPassword
 The password for the <SID>adm user
+
+.Parameter vCenterAddress
+The address of the vCenter server (vvols only)
+
+.Parameter vCenterUser
+The vCenter server user (vvols only)
+
+.Parameter vCenterPassword
+The vCenter server password (vvols only)
 
 .Parameter OverwriteVolume
 A switch parameter , which if specified recovers the database by overwriting the original volume
@@ -98,7 +107,7 @@ No passwords need to be given in the command line , the user will be prompted fo
 Param(
     [parameter(Mandatory=$True)]
     [string]$HostAddress,
-    [parameter(,Mandatory=$True)]
+    [parameter(,Mandatory=$False)]
     [string]$InstanceNumber,
     [parameter(Mandatory=$True)]
     [string]$DatabaseName ,
@@ -106,8 +115,8 @@ Param(
     [string]$DatabaseUser,
     [Parameter(Mandatory=$False)]
     $DatabasePassword,
-    [Parameter(Mandatory=$True)]
-    $DatabasePort,
+    [Parameter(Mandatory=$False)]
+    [string]$DatabasePort,
     [parameter(Mandatory=$True)]
     [string]$OperatingSystemUser,
     [Parameter(Mandatory=$False)]
@@ -120,6 +129,11 @@ Param(
     $PureFlashArrayPassword,
     [Parameter(Mandatory=$False)]
     $SIDADMPassword,
+    [string]$vCenterAddress,
+    [parameter(Mandatory=$False)]
+    [string]$vCenterUser,
+    [Parameter(Mandatory=$False)]
+    $vCenterPassword,
     [Parameter(Mandatory=$False)]
     [switch]$OverwriteVolume
 )
@@ -145,6 +159,22 @@ function AskInSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]
 
 function Check-Arguments()
 {
+    if ($InstanceNumber -eq "") 
+    {
+        $script:InstanceNumber = "00"
+    }
+    else
+    {
+        $script:InstanceNumber = $InstanceNumber
+    }
+    if ($DatabasePort -eq "") 
+    {
+        $script:DatabasePort = "15"
+    }
+    else
+    {
+        $script:DatabasePort = $DatabasePort
+    }
     if ($DatabasePassword -ne $null) 
     {
         $script:DatabasePassword = $DatabasePassword 
@@ -179,6 +209,30 @@ function Check-Arguments()
     else 
     {
         $script:SIDADMPassword = AskSecureQ "Type in <sidadm> password"
+    }
+    if ($vCenterPassword -ne $null -and $vCenterAddress -ne "")
+    {
+        if($vCenterUser -ne "")
+        {
+            $script:vCenterPassword = $vCenterPassword
+        }
+        else
+        {
+            Write-Host "vCenter user not specified."
+            Exit-PSSession
+        }
+    }
+    elseif($vCenterPassword -eq $null -and $vCenterAddress -ne "")
+    {
+        if($vCenterUser -ne "")
+        {
+            $script:vCenterPassword = AskInSecureQ "Type in vCenter user password "
+        }
+        else
+        {
+            Write-Host "vCenter user not specified."
+            Exit-PSSession
+        }
     }
 }
 
@@ -221,6 +275,10 @@ function Check-ForPrerequisites()
             ##Check for required libraries for SSH and Pure Storage SDK
             Check-ForPOSH-SSH
             Check-ForPureStorageSDK
+            if($vCenterAddress -ne "" -and $vCenterUser -ne "")
+            {
+                Check-ForPowerCLI
+            }
             return $true
         }
     }
@@ -235,7 +293,7 @@ function Check-ForPOSH-SSH()
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Write-host "`t`t|              Installing POSH-SSH               |" -ForegroundColor White
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Install-Module -Name Posh-SSH   
+        Install-Module -Name Posh-SSH -Scope CurrentUser
     }
     else
     {
@@ -250,13 +308,13 @@ function Check-ForPOSH-SSH()
 function Check-ForPureStorageSDK()
 {
     Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-    $pureSTorageSDKCheck = Get-Module -Name PureStoragePowerShellSDK
-    if($pureSTorageSDKCheck -eq $null)
+    $pureStorageSDKCheck = Get-Module -Name PureStoragePowerShellSDK
+    if($pureStorageSDKCheck -eq $null)
     {
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Write-host "`t`t|     Installing Pure Storage Powershell SDK     |" -ForegroundColor White
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Install-Module PureStoragePowerShellSDK
+        Install-Module PureStoragePowerShellSDK -Scope CurrentUser
     }
     else
     {
@@ -265,6 +323,44 @@ function Check-ForPureStorageSDK()
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
     }
     Import-Module PureStoragePowerShellSDK
+    if($vCenterAddress -ne "" -and $vCenterUser -ne "")
+    {
+        $pureStorageVMwareModuleCheck  = Get-Module -Name PureStorage.FlashArray.VMware
+        if($pureStorageVMwareModuleCheck -eq $null)
+        {
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|     Installing Pure Storage VMware module      |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Install-Module PureStorage.FlashArray.VMware -Scope CurrentUser
+        }
+        else
+        {
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|  Pure Storage VMware module already installed  |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Import-Module PureStorage.FlashArray.VMware
+        }
+    }
+}
+
+function Check-ForPowerCLI()
+{
+    Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+    $PowerCLICheck = Get-Module -Name VMware.PowerCLI
+    if($pureStorageSDKCheck -eq $null)
+    {
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|     Installing Pure Storage Powershell SDK     |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Install-Module VMware.PowerCLI -Scope CurrentUser
+    }
+    else
+    {
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|  Pure Storage Powershell SDK already installed |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+    }
+    Get-Module -ListAvailable VMware* | Import-Module
 }
   
 function Get-ODBCData() 
@@ -308,13 +404,20 @@ function Get-VolumeSerialNumber()
     $output = $stream.Readline()
     $dfToParse = $stream.ReadLine()
     $ParsedVolumeDevLocation = [regex]::Match($dfToParse, '(\S+)').Groups[1].Value
-    $udevADMQuery = "udevadm info --query=all --name=" + $ParsedVolumeDevLocation + " | grep DM_SERIAL"
+    if ($vCenterAddress -ne "" -and $vCenterUser -ne "" -and $script:vCenterPassword -ne $null)
+    {
+        $udevADMQuery = "udevadm info --query=all --name=" + $ParsedVolumeDevLocation + " | grep ID_SERIAL"
+    }
+    else
+    {
+        $udevADMQuery = "udevadm info --query=all --name=" + $ParsedVolumeDevLocation + " | grep DM_SERIAL"
+    }
     $stream.WriteLine($udevADMQuery)
     $output = $stream.ReadLine()
     $queryResponse = $stream.ReadLine()
     $volSerialNumber = ($queryResponse.split('='))[1]
     $output =  Remove-SSHSession -SessionId $sessionval.SessionId
-    return $volSerialNumber
+    return $volSerialNumber, $ParsedVolumeDevLocation
 }
 
 function Check-StorageSnapshot()
@@ -341,6 +444,33 @@ function Check-StorageSnapshot()
         }        
     }
     return $VolSnap
+}
+
+function Get-vvolDiskMapping()
+{
+    param(
+        $HostSerialNumber
+    )
+    $vCenterServer =  Connect-VIServer -Server $vCenterAddress -User $vCenterUser -Password $script:vCenterPassword
+    $VirtualMachines = Get-VM
+    foreach($vm in $VirtualMachines)
+    {
+        $vmHardDisks = Get-VM -Name $vm.Name | Get-HardDisk
+        $vmDatacenterView = Get-VM -Name $vm.Name | Get-Datacenter | Get-View
+        $virtualDiskManager = Get-View -Id VirtualDiskManager-virtualDiskManager
+
+        foreach ($vmHardDisk in $vmHardDisks)
+        {
+            $vmHardDiskUuid = $virtualDiskManager.queryvirtualdiskuuid($vmHardDisk.Filename, $vmDatacenterView.MoRef) | foreach {$_.replace(' ','').replace('-','')}
+
+            if($HostSerialNumber.tolower() -eq ("3" + $vmHardDiskUuid))
+            {
+                $vvolUUID =  Get-VvolUuidFromHardDisk -vmdk $vmHardDisk 
+                Disconnect-VIServer -Force -Confirm:$false
+                return $vvolUUID
+            }
+        }
+    }
 }
 
 function Stop-SAPHANAInstance()
@@ -422,7 +552,7 @@ function Restore-OverwiteVolume()
    
     #Operating system add new device map
     Start-Sleep -Seconds 5
-    $rescanStorageStringAdd = "rescan-scsi-bus.sh -a" 
+    $rescanStorageStringAdd = "sudo rescan-scsi-bus.sh -a" 
     $stream.writeline($rescanStorageStringAdd)
     do{$output += start-sleep -Milliseconds 250;$stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
     Start-Sleep -Seconds 10
@@ -440,6 +570,37 @@ function Restore-OverwiteVolume()
         return $False
     }
 
+}
+
+function Restore-OverwiteVirtualVolume()
+{
+    Param(
+        $FlashArrayAddress, 
+        $User, 
+        $Password,
+        $Snapshot,
+        $HostAddress,
+        $DataVolumeMountPoint,
+        $OSUser,
+        $OSPassword,
+        $vvolUUID,
+        $OSDataVolume
+    )
+
+    $Array = New-PfaArray -EndPoint $FlashArrayAddress -username $User -Password $Password -IgnoreCertificateError
+    $volname = Get-PfaVolumeNameFromVvolUuid -flasharray $Array -vvolUUID $vvolUUID
+    $volumeoverwite = New-PfaVolume -Array $Array -VolumeName $volname -Source $Snapshot.name -Overwrite
+
+    $Cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $OSUser, $OSPassword
+    $sessionval = New-SSHSession -ComputerName $HostAddress -Credential $Cred -AcceptKey:$True -ConnectionTimeout 600
+    $session = Get-SSHSession -SessionId $sessionval.SessionId
+    $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
+    Start-Sleep -Seconds 1
+    do{$output = $stream.read()}while($stream.DataAvailable)
+    $deviceMountString = "mount " + $OSDataVolume + " " + $DataVolumeMountPoint
+    $stream.writeline($deviceMountString)
+    Start-Sleep -Seconds 30
+    $output =  Remove-SSHSession -SessionId $sessionval.SessionID
 }
 
 function Restore-CopySnapToVolume()
@@ -479,14 +640,14 @@ function Restore-CopySnapToVolume()
                     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
                     Start-Sleep -Seconds 1
                     do{start-sleep -Milliseconds 250;$output += $stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
-                    $rescanStorageStringRemove = "rescan-scsi-bus.sh -r" 
+                    $rescanStorageStringRemove = "sudo rescan-scsi-bus.sh -r" 
                     $stream.writeline($rescanStorageStringRemove)
                     do{start-sleep -Milliseconds 250;$output += $stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
                     Start-Sleep -Seconds 10
                     #connect copy data volume 
                     $connectHost = New-PfaHostVolumeConnection -Array $Array -VolumeName $newVolFromCopy.name -HostName $hostobj.name
                     #Operating system add new device map
-                    $rescanStorageStringAdd = "rescan-scsi-bus.sh -a" 
+                    $rescanStorageStringAdd = "sudo rescan-scsi-bus.sh -a" 
                     $stream.writeline($rescanStorageStringAdd)
                     do{start-sleep -Milliseconds 250;$output += $stream.read();start-sleep -Milliseconds 250;}while($stream.DataAvailable)
                     Start-Sleep -Seconds 10
@@ -495,7 +656,7 @@ function Restore-CopySnapToVolume()
                     Start-Sleep -Seconds 30
                     $output =  Remove-SSHSession -SessionId $sessionval.SessionID
                     $ReturnedSerialNumber = Get-VolumeSerialNumber -HostAddress $HostAddress -DataVolumeMountPoint $DataVolumeMountPoint -OSUser $OSUser -OSPassword $OSPassword
-                    if($ReturnedSerialNumber.Contains($newVolFromCopy.serial.ToLower()))
+                    if($ReturnedSerialNumber[0].Contains($newVolFromCopy.serial.ToLower()))
                     {
                         return $True
                     }
@@ -584,8 +745,18 @@ if(Check-ForPrerequisites)
     $instanceID =  Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql $GetSAPHANAInstanceID
     $ShortMountPath = ((Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql `
     $GetDataVolumeLocation).VALUE).Replace("/" + $instanceID.VALUE,"")
-    $SerialNumber =  Get-VolumeSerialNumber -HostAddress $HostAddress -OSUser $OperatingSystemUser `
-    -OSPassword $script:OperatingSystemPassword -DataVolumeMountPoint $ShortMountPath
+    $SerialNumber
+    if($vCenterAddress -ne "" -and $vCenterUser -ne "" -and $script:vCenterPassword -ne $null)
+    {
+        $SerialNumber =  Get-VolumeSerialNumber -HostAddress $HostAddress -OSUser $OperatingSystemUser `
+        -OSPassword $script:OperatingSystemPassword -DataVolumeMountPoint $ShortMountPath 
+        $OverwriteVolume = $True
+    }
+    else
+    {
+        $SerialNumber =  Get-VolumeSerialNumber -HostAddress $HostAddress -OSUser $OperatingSystemUser `
+        -OSPassword $script:OperatingSystemPassword -DataVolumeMountPoint $ShortMountPath -DeviceMapper
+    }
 
     $catalog = Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql $GetSAPHANACatalog
 
@@ -666,10 +837,23 @@ if(Check-ForPrerequisites)
                                     Write-host "`t`t|           Overwriting existing volume          |" -ForegroundColor White
                                     Write-host "`t`t|        Updating operating system storage       |" -ForegroundColor White
                                     Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-                                    $sucess = Restore-OverwiteVolume -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
-                                    -Password $script:PureFlashArrayPassword -Snapshot $snapshot -HostAddress $HostAddress `
-                                    -DataVolumeMountPoint $ShortMountPath `
-                                    -OSUser $OperatingSystemUser -OSPassword $Script:OperatingSystemPassword -CurrentVolumeSerialNumber $SerialNumber
+                                    if($vCenterAddress -ne "" -and $vCenterUser -ne "" -and $script:vCenterPassword -ne $null)
+                                    {
+                                        $vvolUUID = Get-vvolDiskMapping -HostSerialNumber $SerialNumber[0]
+                                        $sucess = Restore-OverwiteVirtualVolume -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
+                                        -Password $script:PureFlashArrayPassword -Snapshot $snapshot -HostAddress $HostAddress `
+                                        -DataVolumeMountPoint $ShortMountPath -OSUser $OperatingSystemUser `
+                                        -OSPassword $script:OperatingSystemPassword -vvolUUID $vvolUUID `
+                                        -OSDataVolume $SerialNumber[1]
+                                    }
+                                    else
+                                    {
+                                        $sucess = Restore-OverwiteVolume -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
+                                        -Password $script:PureFlashArrayPassword -Snapshot $snapshot -HostAddress $HostAddress `
+                                        -DataVolumeMountPoint $ShortMountPath `
+                                        -OSUser $OperatingSystemUser -OSPassword $Script:OperatingSystemPassword -CurrentVolumeSerialNumber $SerialNumber[0]
+                                    }
+                                    
                                 }
                                 else
                                 {
@@ -682,7 +866,7 @@ if(Check-ForPrerequisites)
                                     -Password $script:PureFlashArrayPassword -Snapshot $snapshot -HostAddress $HostAddress `
                                     -DataVolumeMountPoint $ShortMountPath `
                                     -OSUser $OperatingSystemUser -OSPassword $Script:OperatingSystemPassword -BackupID $recoverypoint.BackupID `
-                                    -SerialNumber $SerialNumber
+                                    -SerialNumber $SerialNumber[0]
 
                                 }
 
@@ -734,8 +918,7 @@ if(Check-ForPrerequisites)
                         {
                             $x2MenuInput = Read-Host "`nInvlid Input , Try Again -->"
                         }
-                    }
-                    
+                    } 
                 }
                 else
                 {
@@ -780,9 +963,4 @@ if(Check-ForPrerequisites)
             start-sleep -Seconds 3
         }
     }
-
-
-
 }
-
-

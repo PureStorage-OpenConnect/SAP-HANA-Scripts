@@ -3,9 +3,9 @@
 NAME: New-StorageSnapshot
 AUTHOR: Andrew Sillifant
 Website: https://www.purestorage.com/
-Version: 0.2
-CREATED: 2020/07/04
-LASTEDIT: 2020/07/04
+Version: 0.4
+CREATED: 2020/11/04
+LASTEDIT: 2020/10/06
 
  .Synopsis
 Provides and easy to use single command for the creating of application consistent storage snapshots between SAP HANA and Pure Storage Flash Array
@@ -49,10 +49,43 @@ The password for the user specified in PureFlashArrayUser
 .Parameter DomainName
 Only for Scale out scenarios where the search domain does not match the existing domain for the SAP HANA hosts
 
+.Parameter vCenterAddress
+The address of the vCenter server (vvols only)
+
+.Parameter vCenterUser
+The vCenter server user (vvols only)
+
+.Parameter vCenterPassword
+The vCenter server password (vvols only)
+
 .Parameter CrashConsistentSnapshot
 If this parameter is specified then the a snapshot of both the 
 log and data volume will be created without preparing the database
 If this is not wspecified the snapshot will be created as application consistent
+
+.Parameter FreezeFileSystems
+If this parameter is specified then the filesystem(s) will be frozen prior to taking a storage snapshot
+
+.Example
+New-StorageSnapshot -HostAddress <IP address of host> 
+-InstanceNumber <Instance Number (00)> -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> 
+-OperatingSystemUser <OS-User> -PureFlashArrayAddress <Pure FlashArray IP or hostname>
+ -PureFlashArrayUser <pure FA User> -DatabasePort <Port> -DomainName <DomainName>
+Create a snapshot without entering information for the password fields
+
+.Example
+New-StorageSnapshot -HostAddress <IP address of host> -InstanceNumber <Instance Number (00)>
+ -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> -DatabasePassword <DBPassword> 
+-OperatingSystemUser <OS-User> -OperatingSystemPassword <OSPassword> -PureFlashArrayAddress <Pure FlashArray IP or hostname> 
+-PureFlashArrayUser <pure FA User> -PureFlashArrayPassword <Pure FA Password> -DatabasePort <Port> -DomainName <DomainName>
+Create a snapshot with all of the password fields being shown as plaintext 
+
+.Example
+New-StorageSnapshot -HostAddress <IP address of host> 
+-InstanceNumber <Instance Number (00)> -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> 
+-OperatingSystemUser <OS-User> -PureFlashArrayAddress <Pure FlashArray IP or hostname>
+ -PureFlashArrayUser <pure FA User> -DatabasePort <Port> -DomainName <DomainName> -CrashConsistent
+Create a crash consistent snapshot without entering information for the password fields
 
 .Example
 New-StorageSnapshot -HostAddress <IP address of host> 
@@ -86,7 +119,7 @@ Param(
     [string[]]$HostAddresses,
     [parameter(Mandatory=$true)]
     [string]$DomainName,
-    [parameter(,Mandatory=$true)]
+    [parameter(,Mandatory=$false)]
     [string]$InstanceNumber,
     [parameter(Mandatory=$true)]
     [string]$DatabaseName,
@@ -95,7 +128,7 @@ Param(
     [Parameter(Mandatory=$False)]
     $DatabasePassword ,
     [Parameter(Mandatory=$False)]
-    $DatabasePort,
+    [string]$DatabasePort,
     [parameter(Mandatory=$true)]
     [string]$OperatingSystemUser,
     [Parameter(Mandatory=$False)]
@@ -106,10 +139,17 @@ Param(
     [string]$PureFlashArrayUser,
     [Parameter(Mandatory=$False)]
     $PureFlashArrayPassword,
+    [parameter(Mandatory=$False)]
+    [string]$vCenterAddress,
+    [parameter(Mandatory=$False)]
+    [string]$vCenterUser,
     [Parameter(Mandatory=$False)]
-    [switch]$CrashConsistentSnapshot
+    $vCenterPassword,
+    [Parameter(Mandatory=$False)]
+    [switch]$CrashConsistentSnapshot,
+    [Parameter(Mandatory=$False)]
+    [switch]$FreezeFilesystems
 )
-
 
 function AskSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]$Background="Blue") {
     Write-Host $Question -ForegroundColor $Foreground -BackgroundColor $Background -NoNewLine
@@ -126,13 +166,21 @@ function AskInSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]
 
 function Check-Arguments()
 {
-    if ($InstanceNumber -eq "" -and $InstanceNumber -eq [String]::Empty) 
+    if ($InstanceNumber -eq "") 
     {
-        $InstanceNumber = "00"
+        $script:InstanceNumber = "00"
     }
-    if ($DatabasePort -eq "" -and $DatabasePort -eq [String]::Empty) 
+    else
     {
-        $InstanceNumber = "15"
+        $script:InstanceNumber = $InstanceNumber
+    }
+    if ($DatabasePort -eq "") 
+    {
+        $script:DatabasePort = "15"
+    }
+    else
+    {
+        $script:DatabasePort = $DatabasePort
     }
     if ($DatabasePassword -ne $null) 
     {
@@ -159,6 +207,30 @@ function Check-Arguments()
     else 
     {
         $script:PureFlashArrayPassword = AskSecureQ "Type in FlashArray password"
+    }
+    if ($vCenterPassword -ne $null -and $vCenterAddress -ne "")
+    {
+        if($vCenterUser -ne "")
+        {
+            $script:vCenterPassword = $vCenterPassword
+        }
+        else
+        {
+            Write-Host "vCenter user not specified."
+            Exit-PSSession
+        }
+    }
+    elseif($vCenterPassword -eq $null -and $vCenterAddress -ne "")
+    {
+        if($vCenterUser -ne "")
+        {
+            $script:vCenterPassword = AskInSecureQ "Type in vCenter user password "
+        }
+        else
+        {
+            Write-Host "vCenter user not specified."
+            Exit-PSSession
+        }
     }
 }
 
@@ -206,6 +278,10 @@ function Check-ForPrerequisites()
             ##Check for required libraries for SSH and Pure Storage SDK
             Check-ForPOSH-SSH
             Check-ForPureStorageSDK
+            if($vCenterAddress -ne "" -and $vCenterUser -ne "")
+            {
+                Check-ForPowerCLI
+            }
             return $true
         }
     }
@@ -220,7 +296,7 @@ function Check-ForPOSH-SSH()
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Write-host "`t`t|              Installing POSH-SSH               |" -ForegroundColor White
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Install-Module -Name Posh-SSH   
+        Install-Module -Name Posh-SSH -Scope CurrentUser
     }
     else
     {
@@ -235,13 +311,13 @@ function Check-ForPOSH-SSH()
 function Check-ForPureStorageSDK()
 {
     Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-    $pureSTorageSDKCheck = Get-Module -Name PureStoragePowerShellSDK
-    if($pureSTorageSDKCheck -eq $null)
+    $pureStorageSDKCheck = Get-Module -Name PureStoragePowerShellSDK
+    if($pureStorageSDKCheck -eq $null)
     {
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Write-host "`t`t|     Installing Pure Storage Powershell SDK     |" -ForegroundColor White
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Install-Module PureStoragePowerShellSDK
+        Install-Module PureStoragePowerShellSDK -Scope CurrentUser
     }
     else
     {
@@ -250,6 +326,44 @@ function Check-ForPureStorageSDK()
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
     }
     Import-Module PureStoragePowerShellSDK
+    if($vCenterAddress -ne "" -and $vCenterUser -ne "")
+    {
+        $pureStorageVMwareModuleCheck  = Get-Module -Name PureStorage.FlashArray.VMware
+        if($pureStorageVMwareModuleCheck -eq $null)
+        {
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|     Installing Pure Storage VMware module      |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Install-Module PureStorage.FlashArray.VMware -Scope CurrentUser
+        }
+        else
+        {
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|  Pure Storage VMware module already installed  |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Import-Module PureStorage.FlashArray.VMware
+        }
+    }
+}
+
+function Check-ForPowerCLI()
+{
+    Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+    $PowerCLICheck = Get-Module -Name VMware.PowerCLI
+    if($pureStorageSDKCheck -eq $null)
+    {
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|     Installing Pure Storage Powershell SDK     |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Install-Module VMware.PowerCLI -Scope CurrentUser
+    }
+    else
+    {
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|  Pure Storage Powershell SDK already installed |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+    }
+    Get-Module -ListAvailable VMware* | Import-Module
 }
   
 function Get-ODBCData() 
@@ -363,24 +477,53 @@ function Create-PureStorageVolumeSnapshot()
     {
         if($serialNumber.Contains($vol.serial.tolower()))
         {
-            Write-Host "Volume located, creating snapshot"
             $VolumeSnapshot = New-PfaVolumeSnapshots -Array $Array -Sources $vol.name -Suffix $SnapshotSuffix
             if(!($VolumeSnapshot.name -eq $null))
             {
-                Write-host "Snapshot name : " $VolumeSnapshot.name 
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                Write-host "`t`t|                   Snapshot name :              |" -ForegroundColor White
+                Write-host "`t`t      "           $VolumeSnapshot.name              -ForegroundColor White
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
                 return $VolumeSnapshot.serial
             }
             else
             {
-                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-                Write-host "`t`t|                   Snapshot name :              |" -ForegroundColor White
-                Write-host "`t`t      "           $VolumeSnapshot.name                  -ForegroundColor White
-                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
                 Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
                 Write-host "`t`t|           Volume has not been found            |" -ForegroundColor Red
                 Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
             }
         }
+    }
+}
+
+function Create-PureStorageVirtualVolumeSnapshot()
+{
+    Param(
+        $FlashArrayAddress, 
+        $User, 
+        $Password,
+        $vvolUUID, 
+        $SnapshotSuffix
+    )
+  
+    $Array = New-PfaArray -EndPoint $FlashArrayAddress -username $User -Password $Password -IgnoreCertificateError
+    $Volumes = Get-PfaVolumes -Array $Array 
+  
+    $volname = Get-PfaVolumeNameFromVvolUuid -flasharray $Array -vvolUUID $vvolUUID
+    if($volname -ne $null)
+    {
+        $VolumeSnapshot = New-PfaVolumeSnapshots -Array $Array -Sources $volname -Suffix $SnapshotSuffix
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|                   Snapshot name :              |" -ForegroundColor White
+        Write-host "`t`t      "           $VolumeSnapshot.name              -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        return $VolumeSnapshot.serial
+    }
+    else
+    {
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
+        Write-host "`t`t|           Volume has not been found            |" -ForegroundColor Red
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor Red
     }
 }
 
@@ -408,10 +551,6 @@ function Check-PureStoragePG()
     )
     
     $Array = New-PfaArray -EndPoint $FlashArrayAddress -username $User -Password $Password -IgnoreCertificateError
-    
-    ##For scale out , need to ensure that the volumes are exported using a host group
-    
-    $HostGroups = Get-PfaHostGroups -Array $Array
     $PersistenceInfoWithVolNames = @()
 
     $ProtectionGroups = Get-PfaProtectionGroup -Array $Array -Name $PGName -ErrorAction SilentlyContinue
@@ -454,6 +593,53 @@ function Check-PureStoragePG()
 
     return $PersistenceInfoWithVolNames
 }
+
+function Check-PureStoragePGVirtualVolumes()
+{
+    Param(
+        $FlashArrayAddress, 
+        $User, 
+        $Password,
+        $PersistenceInfo,
+        $PGName
+    )
+    
+    $Array = New-PfaArray -EndPoint $FlashArrayAddress -username $User -Password $Password -IgnoreCertificateError
+    
+    $PersistenceInfoWithVolNames = @()
+
+    $ProtectionGroups = Get-PfaProtectionGroup -Array $Array -Name $PGName -ErrorAction SilentlyContinue
+    if($ProtectionGroups -eq $null)
+    {
+        $Output = New-PfaProtectionGroup -Array $Array -Name $PGName
+    }
+ 
+    foreach($device in $PersistenceInfo)
+    {
+        $volname = Get-PfaVolumeNameFromVvolUuid -flasharray $Array -vvolUUID $device.vvolUUID
+        $PFAPG = Get-PfaVolumeProtectionGroups -Array $Array -VolumeName $volname
+        [int]$PGcount = 0
+        if($PFSAPG -ne "")
+        {
+                    
+            foreach($pg in $PFAPG)
+            {
+                if($pg.name -eq $PGName)
+                {
+                    $PGcount++
+                }
+            }    
+        }
+        $device | Add-Member -MemberType NoteProperty -Name VolumeName -Value $volname 
+        if(!$PGcount -gt 0)
+        {
+            $Output = Add-PfaVolumesToProtectionGroup -Array $Array -Name $PGName -VolumesToAdd $device.VolumeName
+        }
+        $PersistenceInfoWithVolNames += $device       
+    }
+
+    return $PersistenceInfoWithVolNames
+}
   
 function Create-SAPHANADatabaseSnapshot()
 {
@@ -477,7 +663,7 @@ function FreezeFileSystem()
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
     Start-Sleep -Seconds 1
     $output = $stream.Read()
-    $stream.WriteLine(" /sbin/fsfreeze -f " + $FilesystemMount)
+    $stream.WriteLine("sudo /sbin/fsfreeze -f " + $FilesystemMount)
     Start-Sleep -Milliseconds 250
     $output =  Remove-SSHSession -SessionId $sessionval.SessionId
 }
@@ -497,9 +683,44 @@ function UnFreezeFileSystem()
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
     Start-Sleep -Seconds 1
     $output = $stream.Read()
-    $stream.WriteLine(" /sbin/fsfreeze -u " + $FilesystemMount)
+    $stream.WriteLine("sudo /sbin/fsfreeze -u " + $FilesystemMount)
     Start-Sleep -Milliseconds 250
     $output =  Remove-SSHSession -SessionId $sessionval.SessionId
+}
+
+function Get-vvolDiskMapping()
+{
+    param(
+        $HostStorageInfo
+    )
+    $vCenterServer =  Connect-VIServer -Server $vCenterAddress -User $vCenterUser -Password $script:vCenterPassword
+    $results = @()
+    $VirtualMachines = Get-VM
+    foreach($vm in $VirtualMachines)
+    {
+        $vmHardDisks = Get-VM -Name $vm.Name | Get-HardDisk
+        $vmDatacenterView = Get-VM -Name $vm.Name | Get-Datacenter | Get-View
+        $virtualDiskManager = Get-View -Id VirtualDiskManager-virtualDiskManager
+
+        foreach ($vmHardDisk in $vmHardDisks)
+        {
+            $vmHardDiskUuid = $virtualDiskManager.queryvirtualdiskuuid($vmHardDisk.Filename, $vmDatacenterView.MoRef) | foreach {$_.replace(' ','').replace('-','')}
+            foreach($info in $HostStorageInfo)
+            {
+                if($info -ne $null)
+                {
+                    if($info.VALUE -eq ("3" + $vmHardDiskUuid) -and (Get-Member -InputObject $info -Name "vvolUUID" -MemberType NoteProperty) -eq $null)
+                    {
+                        $vvolUUID =  Get-VvolUuidFromHardDisk -vmdk $vmHardDisk 
+                        $info | Add-Member -MemberType NoteProperty -Name vvolUUID -Value $vvolUUID
+                        $results += $info
+                    }
+                }
+            }
+        }
+    }
+    Disconnect-VIServer -Force -Confirm:$false
+    return $results
 }
   
 function Abandon-SAPHANADatabaseSnapshot()
@@ -532,10 +753,18 @@ if(Check-ForPrerequisites)
     $hdbConnectionString = "Driver={HDBODBC};ServerNode="
     foreach($shhost in $HostAddresses)
     {
-        $hdbConnectionString = $hdbConnectionString + $shhost + ":3" + $InstanceNumber + $DatabasePort + ","
+        if(!($DomainName -eq $null))
+        {
+            $hdbConnectionString = $hdbConnectionString + $shhost + ":3" + $script:InstanceNumber + $script:DatabasePort + ","
+        }
+        else
+        {
+            $hdbConnectionString = $hdbConnectionString + $shhost + "." + $DomainName + ":3" + $script:InstanceNumber + `
+            $script:DatabasePort + ","
+        }
     }
     $hdbConnectionString = $hdbConnectionString -replace ".{1}$"
-    $hdbConnectionString = $hdbConnectionString + ";UID=" + $DatabaseUser + ";PWD=" + $DatabasePassword +";"
+    $hdbConnectionString = $hdbConnectionString + ";UID=" + $DatabaseUser + ";PWD=" + $script:DatabasePassword +";"
     ##Check the SAP HANA system type for multiDB or single tenant DB
     $SystemType = Check-SAPHANASystemType
     if($SystemType.VALUE -eq 'multidb')
@@ -543,11 +772,13 @@ if(Check-ForPrerequisites)
         $systemDBLocation = Get-ODBCData -hanaConnectionString $hdbConnectionString -hdbsql $RetrieveSystemDBLocation
         if(!($DomainName -eq $null))
         {
-            $hdbConnectionString = "Driver={HDBODBC};ServerNode=" + $systemDBLocation.HOST + "." + $DomainName + ":3" + $InstanceNumber + "13;UID=" + $DatabaseUser + ";PWD=" + $DatabasePassword +";"
+            $hdbConnectionString = "Driver={HDBODBC};ServerNode=" + $systemDBLocation.HOST + "." + $DomainName + ":3" + `
+            $script:InstanceNumber + "13;UID=" + $DatabaseUser + ";PWD=" + $script:DatabasePassword +";"
         }
         else
         {
-            $hdbConnectionString = "Driver={HDBODBC};ServerNode=" + $systemDBLocation.HOST + ":3" + $InstanceNumber + "13;UID=" + $DatabaseUser + ";PWD=" + $DatabasePassword +";"
+            $hdbConnectionString = "Driver={HDBODBC};ServerNode=" + $systemDBLocation.HOST + ":3" + $script:InstanceNumber + `
+            "13;UID=" + $DatabaseUser + ";PWD=" + $script:DatabasePassword +";"
         }
         $multiDB = $true
     }
@@ -561,7 +792,8 @@ if(Check-ForPrerequisites)
         $HostStorageInfo = @()
         foreach($shhost in $HostAddresses)
         {
-            $HostStorageInfo += Get-HostAttachedVolume -HostAddress $shhost -SapHANAStorageInfo $HostsAndAttachedStorage -OSUser $OperatingSystemUser -OSPassword $OperatingSystemPassword
+            $HostStorageInfo += Get-HostAttachedVolume -HostAddress $shhost -SapHANAStorageInfo `
+            $HostsAndAttachedStorage -OSUser $OperatingSystemUser -OSPassword $script:OperatingSystemPassword
         }
 
         $IsolatedHostsAndStorage = @()
@@ -573,6 +805,10 @@ if(Check-ForPrerequisites)
             }
         }
 
+        if($vCenterAddress -ne "" -and $vCenterUser -ne "" -and $script:vCenterPassword -ne $null)
+        {
+            $IsolatedHostsAndStorage = Get-vvolDiskMapping -HostStorageInfo $HostStorageInfo 
+        }
 
         ##Prepare HANA Storage Snapshot
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
@@ -581,33 +817,53 @@ if(Check-ForPrerequisites)
         $HANASnapshot = Create-SAPHANADatabaseSnapshot 
         Start-Sleep -Seconds 5
 
-        ##Freeze the filesystems
-        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Write-host "`t`t|                Freezing filesystem             |" -ForegroundColor White
-        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        foreach($shhost in $IsolatedHostsAndStorage)
+        if($FreezeFilesystems)
         {
-            FreezeFileSystem -HostAddress $shhost.HOST_IP -OSUser $OperatingSystemUser -OSPassword $OperatingSystemPassword -FilesystemMount $shhost.PATH
+            ##Freeze the filesystems
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|                Freezing filesystem             |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            foreach($shhost in $IsolatedHostsAndStorage)
+            {
+                FreezeFileSystem -HostAddress $shhost.HOST_IP -OSUser $OperatingSystemUser -OSPassword `
+                $script:OperatingSystemPassword -FilesystemMount $shhost.PATH
+            }
         }
 
         ##Create Pure Volume Snapshots
-        Write-Host "Creating block volume snapshot"
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+        Write-host "`t`t|         Creating block volume snapshot        |" -ForegroundColor White
+        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         $snapshotSerial = @()
         foreach($shhost in $IsolatedHostsAndStorage)
         {
             
-            $SnapshotSuffix = "SAPHANA-" + $HANASnapshot.BACKUP_ID.ToString() + "-Host-" + $shhost.HOST + "-Path-" + $shhost.PATH.Replace($ShortMountPath + "/", "")
-            $snapshotSerial += Create-PureStorageVolumeSnapshot -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser -Password $PureFlashArrayPassword -SerialNumber $shhost.VALUE -SnapshotSuffix $SnapshotSuffix
+            $SnapshotSuffix = "SAPHANA-" + $HANASnapshot.BACKUP_ID.ToString() + "-Host-" + $shhost.HOST + "-Path-" + `
+            $shhost.PATH.Replace($ShortMountPath + "/", "")
+
+            
+            if($vCenterAddress -ne "" -and $vCenterUser -ne "" -and $vCenterPassword -ne $null)
+            {
+                $snapshotserial += Create-PureStorageVirtualVolumeSnapshot -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
+                -Password $script:PureFlashArrayPassword -vvolUUID $shhost.vvolUUID -SnapshotSuffix $SnapshotSuffix
+            }
+            else
+            {
+                $snapshotSerial += Create-PureStorageVolumeSnapshot -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
+                -Password $script:PureFlashArrayPassword -SerialNumber $shhost.VALUE -SnapshotSuffix $SnapshotSuffix
+            }
         
         }
-       
-        ##Unfreeze the filesystems
-        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Write-host "`t`t|              UnFreezing filesystem             |" -ForegroundColor White
-        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        foreach($shhost in $IsolatedHostsAndStorage)
+        if($FreezeFilesystems)
         {
-            UnFreezeFileSystem -HostAddress $shhost.HOST_IP -OSUser $OperatingSystemUser -OSPassword $OperatingSystemPassword -FilesystemMount $shhost.PATH
+            ##Unfreeze the filesystems
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|              UnFreezing filesystem             |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            foreach($shhost in $IsolatedHostsAndStorage)
+            {
+                UnFreezeFileSystem -HostAddress $shhost.HOST_IP -OSUser $OperatingSystemUser -OSPassword $script:OperatingSystemPassword -FilesystemMount $shhost.PATH
+            }
         }
         $countserials = 0
         $EBID = ""
@@ -650,61 +906,83 @@ if(Check-ForPrerequisites)
         $HostStorageInfo = @()
         foreach($shhost in $HostAddresses)
         {
-            $deviceInfo = Get-HostAttachedVolume -HostAddress $shhost -SapHANAStorageInfo $dataDevices -OSUser $OperatingSystemUser -OSPassword $OperatingSystemPassword
+            $deviceInfo = Get-HostAttachedVolume -HostAddress $shhost -SapHANAStorageInfo $dataDevices -OSUser $OperatingSystemUser -OSPassword $script:OperatingSystemPassword
             $HostStorageInfo += $deviceInfo[1]
-            $deviceInfo = Get-HostAttachedVolume -HostAddress $shhost -SapHANAStorageInfo $logDevices -OSUser $OperatingSystemUser -OSPassword $OperatingSystemPassword
+            $deviceInfo = Get-HostAttachedVolume -HostAddress $shhost -SapHANAStorageInfo $logDevices -OSUser $OperatingSystemUser -OSPassword $script:OperatingSystemPassword
             $HostStorageInfo += $deviceInfo[1]
         }
-        
         $Persistence = @()
-        foreach($d in $HostStorageInfo)
-        {
-            if($d -ne $null)
-            {
-                $persistenceObj = New-Object -TypeName PSObject
-
-
-                $SerialNumber =  Get-VolumeSerialNumber -HostAddress $d.HOST_IP -OSUser $OperatingSystemUser `
-                -OSPassword $OperatingSystemPassword -DataVolumeMountPoint $d.VALUE
-                $persistenceObj | Add-Member -MemberType NoteProperty -Name MountPoint -Value $d.PATH
-                $persistenceObj | Add-Member -MemberType NoteProperty -Name Host -Value $d.HOST
-                $persistenceObj | Add-Member -MemberType NoteProperty -Name Host_IP -Value $d.HOST_IP
-                $persistenceObj | Add-Member -MemberType NoteProperty -Name SerialNumber -Value $SerialNumber
-                $Persistence += $persistenceObj 
-            }
-        }
-        
-        #Check if the log and data volumes are already apart of a protection group in a host group
-
         $PGName = "SAPHANA-" + $DatabaseName + "-CrashConsistency"
-
-        $Persistence = Check-PureStoragePG -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser -Password $PureFlashArrayPassword -PersistenceInfo $Persistence -PGName $PGName
-
-
-        ##Freeze the filesystem
-        foreach($p in $Persistence)
+        #Check if the log and data volumes are already apart of a protection group in a host group
+        if($vCenterAddress -ne "" -and $vCenterUser -ne "" -and $script:vCenterPassword -ne $null)
         {
-            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-            Write-host "`t`t|     Freezing filesystem for " $p.MountPoint"       " -ForegroundColor White
-            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-            FreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
-            $OperatingSystemPassword -FilesystemMount $p.MountPoint
+            $HostStorageInfo = Get-vvolDiskMapping -HostStorageInfo $HostStorageInfo 
+            foreach($d in $HostStorageInfo)
+            {
+                if($d -ne $null)
+                {
+                    $persistenceObj = New-Object -TypeName PSObject
+                    $persistenceObj | Add-Member -MemberType NoteProperty -Name MountPoint -Value $d.PATH
+                    $persistenceObj | Add-Member -MemberType NoteProperty -Name Host -Value $d.HOST
+                    $persistenceObj | Add-Member -MemberType NoteProperty -Name Host_IP -Value $d.HOST_IP
+                    $persistenceObj | Add-Member -MemberType NoteProperty -Name SerialNumber -Value $d.VALUE
+                    $persistenceObj | Add-Member -MemberType NoteProperty -Name vvolUUID -Value $d.vvolUUID
+                    $Persistence += $persistenceObj 
+                }
+            }
+            $Persistence = Check-PureStoragePGVirtualVolumes -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
+            -Password $script:PureFlashArrayPassword -PersistenceInfo $Persistence -PGName $PGName
+        }
+        else
+        {
+            foreach($d in $HostStorageInfo)
+            {
+                if($d -ne $null)
+                {
+                    $persistenceObj = New-Object -TypeName PSObject
+                    $SerialNumber =  Get-VolumeSerialNumber -HostAddress $d.HOST_IP -OSUser $OperatingSystemUser `
+                    -OSPassword $script:OperatingSystemPassword -DataVolumeMountPoint $d.VALUE
+                    $persistenceObj | Add-Member -MemberType NoteProperty -Name MountPoint -Value $d.PATH
+                    $persistenceObj | Add-Member -MemberType NoteProperty -Name Host -Value $d.HOST
+                    $persistenceObj | Add-Member -MemberType NoteProperty -Name Host_IP -Value $d.HOST_IP
+                    $persistenceObj | Add-Member -MemberType NoteProperty -Name SerialNumber -Value $SerialNumber
+                    $Persistence += $persistenceObj 
+                }
+            }
+            $Persistence = Check-PureStoragePG -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
+            -Password $script:PureFlashArrayPassword -PersistenceInfo $Persistence -PGName $PGName
+        }
+        if($FreezeFilesystems)
+        {
+            ##Freeze the filesystem
+            foreach($p in $Persistence)
+            {
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                Write-host "`t`t|     Freezing filesystem for " $p.MountPoint"       " -ForegroundColor White
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                FreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
+                $script:OperatingSystemPassword -FilesystemMount $p.MountPoint
+            }
         }
 
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Write-host "`t`t|        Creating Crash Consistent Snapshot      |" -ForegroundColor White
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        $PGSnap = Create-PureStoragePGSnapshot -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser -Password $PureFlashArrayPassword -PGName $PGName
+        $PGSnap = Create-PureStoragePGSnapshot -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
+        -Password $script:PureFlashArrayPassword -PGName $PGName
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Write-host "`t`t| "$PGSnap.name " created              " -ForegroundColor White
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        foreach($p in $Persistence)
+        if($FreezeFilesystems)
         {
-            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-            Write-host "`t`t|     UnFreezing filesystem for " $p.MountPoint"  " -ForegroundColor White
-            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-            UnFreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
-            $OperatingSystemPassword -FilesystemMount $p.MountPoint
+            foreach($p in $Persistence)
+            {
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                Write-host "`t`t|     UnFreezing filesystem for " $p.MountPoint"  " -ForegroundColor White
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                UnFreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
+                $script:OperatingSystemPassword -FilesystemMount $p.MountPoint
+            }
         }
     }
 }
