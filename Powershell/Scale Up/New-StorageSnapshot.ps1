@@ -3,9 +3,9 @@
 NAME: New-StorageSnapshot
 AUTHOR: Andrew Sillifant
 Website: https://www.purestorage.com/
-Version: 0.2
+Version: 0.4
 CREATED: 2020/07/04
-LASTEDIT: 2020/30/05
+LASTEDIT: 2020/11/06
 
  .Synopsis
 Provides and easy to use single command for the creating of application consistent 
@@ -99,7 +99,7 @@ Param(
     [string]$HostAddress,
     [parameter(,Mandatory=$False)]
     [string]$InstanceNumber,
-    [parameter(Mandatory=$False)]
+    [parameter(Mandatory=$True)]
     [string]$DatabaseName,
     [parameter(Mandatory=$True)]
     [string]$DatabaseUser,
@@ -128,7 +128,7 @@ Param(
     [Parameter(Mandatory=$False)]
     [switch]$FreezeFilesystems
 )
-
+$CrashConsistentSnapshot = $true
 ################################
 #       Default Values for     #
 #       optional parameters    #
@@ -612,7 +612,7 @@ function FreezeFileSystem()
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
     Start-Sleep -Seconds 1
     $output = $stream.Read()
-    $stream.WriteLine(" /sbin/fsfreeze -f " + $FilesystemMount)
+    $stream.WriteLine("sudo /sbin/fsfreeze -f " + $FilesystemMount)
     Start-Sleep -Milliseconds 250
     $output =  Remove-SSHSession -SessionId $sessionval.SessionId
 }
@@ -631,7 +631,7 @@ function UnFreezeFileSystem()
     $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
     Start-Sleep -Seconds 1
     $output = $stream.Read()
-    $stream.WriteLine(" /sbin/fsfreeze -u " + $FilesystemMount)
+    $stream.WriteLine("sudo /sbin/fsfreeze -u " + $FilesystemMount)
     Start-Sleep -Milliseconds 250
     $output =  Remove-SSHSession -SessionId $sessionval.SessionId
 }
@@ -804,7 +804,7 @@ if(Check-ForPrerequisites)
                 $persistenceObj = New-Object -TypeName PSObject
                 $ShortMountPath = ($d.VALUE).Replace("/" + $instanceID.VALUE,"")
                 $SerialNumber =  Get-VolumeSerialNumber -HostAddress $HostAddress -OSUser $OperatingSystemUser `
-                -OSPassword $script:OperatingSystemPassword -DataVolumeMountPoint $ShortMountPath
+                -OSPassword $script:OperatingSystemPassword -DataVolumeMountPoint $ShortMountPath -DeviceMapper
                 $persistenceObj | Add-Member -MemberType NoteProperty -Name MountPoint -Value $ShortMountPath
                 $persistenceObj | Add-Member -MemberType NoteProperty -Name SerialNumber -Value $SerialNumber
                 $Persistence += $persistenceObj

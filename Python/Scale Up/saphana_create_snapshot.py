@@ -34,8 +34,10 @@ parser.add_argument('-fau','--flasharrayuser', help='A user on the FlashArray wi
 parser.add_argument('-fap','--flasharraypassword', help='Password for the user with \
     permissions to create a volume snapshot on FlashArray', required=True)
 parser.add_argument('-cc','--crashconsistent', action="store_false", default=None,\
-     help='Create a crash consistent snapshot in a protection group',required=False)   
-parser.add_argument('--version', action='version', version='%(prog)s 0.3')
+     help='Create a crash consistent snapshot in a protection group',required=False)
+parser.add_argument('-ff','--freezefilesystem', action="store_false", default=None,\
+     help='Create a crash consistent snapshot in a protection group',required=False)  
+parser.add_argument('--version', action='version', version='%(prog)s 0.4')
 
 args = parser.parse_args()
 
@@ -51,6 +53,7 @@ flasharray = args.flasharray
 flasharrayuser = args.flasharrayuser
 flasharraypassword = args.flasharraypassword
 crashconsistent = args.crashconsistent
+freezefilesystem = args.freezefilesystem
 
 # hostaddress = ""
 # instancenumber = ""
@@ -141,14 +144,14 @@ def get_volume_serialno(volume_mount):
 
 def freeze_filesystem(volume_mount):
     sshclient = prepare_ssh_connection()
-    get_volumemountpoint_command = "/sbin/fsfreeze --freeze" + str(volume_mount)
+    get_volumemountpoint_command = "sudo /sbin/fsfreeze --freeze" + str(volume_mount)
     stdin, stdout, stderr = sshclient.exec_command(get_volumemountpoint_command)
     opt = stdout.readlines()
     sshclient.close()
 
 def unfreeze_filesystem(volume_mount):
     sshclient = prepare_ssh_connection()
-    get_volumemountpoint_command = "/sbin/fsfreeze --unfreeze" + str(volume_mount)
+    get_volumemountpoint_command = "sudo /sbin/fsfreeze --unfreeze" + str(volume_mount)
     stdin, stdout, stderr = sshclient.exec_command(get_volumemountpoint_command)
     opt = stdout.readlines()
     sshclient.close()
@@ -260,11 +263,13 @@ try:
     if(crashconsistent == False):
         data_volume = get_saphana_data_volume_mount()
         saphana_backup_id = prepare_saphana_storage_snapshot()
-        freeze_filesystem(data_volume)
+        if(freezefilesystem == True):
+            freeze_filesystem(data_volume)
         volume_snapshot_id = create_flasharray_volume_snapshot(get_volume_serialno(data_volume), \
              "SAPHANA-" + str(saphana_backup_id))
         print("Volume Snapshot serial number : " + str(volume_snapshot_id))
-        unfreeze_filesystem(data_volume)
+        if(freezefilesystem == True):
+            unfreeze_filesystem(data_volume)
         if saphana_backup_id is not None and volume_snapshot_id is not None:
             print("Confirming storage snapshot with SAP HANA Backup ID : " + str(saphana_backup_id))
             confirm_saphana_storage_snapshot(saphana_backup_id, volume_snapshot_id)
@@ -274,10 +279,12 @@ try:
     else:
        formattedvolumes =  get_persistence_volumes_location()
        for volume in formattedvolumes:
-           freeze_filesystem(volume.get('mountpoint'))
+            if(freezefilesystem == True):
+                freeze_filesystem(volume.get('mountpoint'))
        snapname  = create_protection_group_snap(formattedvolumes)
        for volume in formattedvolumes:
-           unfreeze_filesystem(volume.get('mountpoint'))
+            if(freezefilesystem == True):
+                unfreeze_filesystem(volume.get('mountpoint'))
        print ("Crash consistent storage snapshot " + snapname.get('name') + " created")
 except Exception as e:
     print(e)

@@ -6,9 +6,12 @@ The following functionality can be achieved with the latest versions of these sc
 
 - Create application consistent storage snapshots for SAP HANA systems on FlashArray
 - Create crash consistent storage snapshots for SAP HANA systems on FlashArray
-- Recover from application consistent data snapshots for SAP HANA Scale Up systems on FlashArray  
+- Recover from application consistent data snapshots for SAP HANA Scale Up systems on FlashArray 
 
+SAP HANA systems deployed on VMware , using virtual volumes (vVols) can have application consistent storage snapshots created (Scale Up and Scale Out) and recovered(Scale Up only) from when using the PowerShell scripts. 
 
+If a user other than root is specified to be used for connections to the operation system , then the following needs to be added using visudo -
+     <user> ALL=NOPASSWD: /sbin/fsfreeze,/usr/bin/rescan-scsi-bus.sh 
 
 ## PowerShell Scripts 
 
@@ -27,6 +30,14 @@ A volume snapshot is created for both the data and log volumes for the SAP HANA 
 <u>Location</u> - Powershell/Scale Up/New-StorageSnapshot.ps1
 
 `New-StorageSnapshot -HostAddress <IP address of host> -InstanceNumber <Instance Number (00)> -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> -OperatingSystemUser <OS-User> -PureFlashArrayAddress <Pure FlashArray IP or hostname> -PureFlashArrayUser <pure FA User> -DatabasePort <Port> -CrashConsistentSnapshot`
+
+**Create an application consistent storage snapshot for Scale Up systems on VMware with vVols** 
+
+A volume snapshot is only created for the SAP HANA data volume. Log backups are used to roll the database forward during the recovery process. See [blog post](https://www.andrewsillifant.com/new-sap-hana-scripts-for-automating-storage-operations/) for more details.
+
+<u>Location</u> - Powershell/Scale Up/New-StorageSnapshot.ps1
+
+`New-StorageSnapshot -HostAddress <IP address of host> -InstanceNumber <InstanceNumber (00)> -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> -OperatingSystemUser <OS-User> -PureFlashArrayAddress <Pure FlashArray IP or hostname> -PureFlashArrayUser <pure FA User> -DatabasePort <Port> -vCenterAddress <vCenter hostname or IP> -vCenterUser <vCenter User> -vCenterPassword <vCenter users password>`
 
 **Create an application consistent storage snapshot for Scale Out systems** 
 
@@ -59,6 +70,14 @@ Running this script with the arguments will bring up an interactive ASCII menu ,
 <u>Location</u> - Powershell/Scale Up/Restore-StorageSnapshot.ps1
 
 `Restore-StorageSnapshot -HostAddress <IP address of host> -InstanceNumber <InstanceNumber (00)> -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> -OperatingSystemUser <OS-User> -PureFlashArrayAddress <Pure FlashArray IP or hostname> -PureFlashArrayUser <pure FA User> -DatabasePort <Port> -OverwriteVolume`
+
+**Recover from an application consistent storage snapshot for Scale Up systems on VMware using vVols (overwriting existing volume)** 
+
+Running this script with the arguments will bring up an interactive ASCII menu , allowing for a specific point in time data snapshot to be rolled back to. The script will also check that the data snapshot is still present on the array. This script assumes the snapshot is on the same array as the running SAP HANA data volumes.This will overwrite the existing volume with the snapshot. 
+
+<u>Location</u> - Powershell/Scale Up/Restore-StorageSnapshot.ps1
+
+`Restore-StorageSnapshot -HostAddress <IP address of host> -InstanceNumber <InstanceNumber (00)> -DatabaseName <Database Name (HN1)> -DatabaseUser <DBUser> -OperatingSystemUser <OS-User> -PureFlashArrayAddress <Pure FlashArray IP or hostname> -PureFlashArrayUser <pure FA User> -DatabasePort <Port> -vCenterAddress <vCenter hostname or IP> -vCenterUser <vCenter User> -vCenterPassword `
 
 ## Python Scripts
 
