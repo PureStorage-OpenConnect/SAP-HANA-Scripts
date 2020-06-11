@@ -118,9 +118,9 @@ Param(
     [Parameter(Mandatory=$False)]
     $PureFlashArrayPassword,
     [parameter(Mandatory=$False)]
-    [string]$vCenterAddress = "sprouts.puredoes.local",
+    [string]$vCenterAddress,
     [parameter(Mandatory=$False)]
-    [string]$vCenterUser = "AndrewS",
+    [string]$vCenterUser,
     [Parameter(Mandatory=$False)]
     $vCenterPassword,
     [Parameter(Mandatory=$False)]
@@ -129,7 +129,6 @@ Param(
     [switch]$FreezeFilesystems
 )
 
-$CrashConsistentSnapshot = $True
 ################################
 #       Default Values for     #
 #       optional parameters    #

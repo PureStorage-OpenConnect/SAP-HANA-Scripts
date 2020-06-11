@@ -98,7 +98,7 @@ No passwords need to be given in the command line , the user will be prompted fo
 Param(
     [parameter(Mandatory=$True)]
     [string]$HostAddress,
-    [parameter(,Mandatory=$True)]
+    [parameter(,Mandatory=$False)]
     [string]$InstanceNumber,
     [parameter(Mandatory=$True)]
     [string]$DatabaseName ,
@@ -106,7 +106,7 @@ Param(
     [string]$DatabaseUser,
     [Parameter(Mandatory=$False)]
     $DatabasePassword,
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
     $DatabasePort,
     [parameter(Mandatory=$True)]
     [string]$OperatingSystemUser,
@@ -145,6 +145,22 @@ function AskInSecureQ ([String]$Question, [String]$Foreground="Yellow", [String]
 
 function Check-Arguments()
 {
+    if ($InstanceNumber -eq "") 
+    {
+        $script:InstanceNumber = "00"
+    }
+    else
+    {
+        $script:InstanceNumber = $InstanceNumber
+    }
+    if ($DatabasePort -eq "") 
+    {
+        $script:DatabasePort = "15"
+    }
+    else
+    {
+        $script:DatabasePort = $DatabasePort
+    }
     if ($DatabasePassword -ne $null) 
     {
         $script:DatabasePassword = $DatabasePassword 
@@ -171,15 +187,7 @@ function Check-Arguments()
     {
         $script:PureFlashArrayPassword = AskSecureQ "Type in FlashArray password"
     }
-    if ($SIDADMPassword -ne $null) 
-    {
-        $script:SIDADMPassword = ConvertTo-SecureString -String $SIDADMPassword `
-        -AsPlainText -Force
-    } 
-    else 
-    {
-        $script:SIDADMPassword = AskSecureQ "Type in <sidadm> password"
-    }
+    
 }
 
 ################################
