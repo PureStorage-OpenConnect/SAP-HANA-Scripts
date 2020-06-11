@@ -278,7 +278,10 @@ function Check-ForPrerequisites()
             ##Check for required libraries for SSH and Pure Storage SDK
             Check-ForPOSH-SSH
             Check-ForPureStorageSDK
-            Check-ForPowerCLI
+            if($vCenterAddress -ne "" -and $vCenterUser -ne "")
+            {
+                Check-ForPowerCLI
+            }
             return $true
         }
     }
@@ -323,20 +326,23 @@ function Check-ForPureStorageSDK()
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
     }
     Import-Module PureStoragePowerShellSDK
-    $pureStorageVMwareModuleCheck  = Get-Module -Name PureStorage.FlashArray.VMware
-    if($pureStorageVMwareModuleCheck -eq $null)
+    if($vCenterAddress -ne "" -and $vCenterUser -ne "")
     {
-        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Write-host "`t`t|     Installing Pure Storage VMware module      |" -ForegroundColor White
-        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Install-Module PureStorage.FlashArray.VMware -Scope CurrentUser
-    }
-    else
-    {
-        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Write-host "`t`t|  Pure Storage VMware module already installed  |" -ForegroundColor White
-        Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        Import-Module PureStorage.FlashArray.VMware
+        $pureStorageVMwareModuleCheck  = Get-Module -Name PureStorage.FlashArray.VMware
+        if($pureStorageVMwareModuleCheck -eq $null)
+        {
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|     Installing Pure Storage VMware module      |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Install-Module PureStorage.FlashArray.VMware -Scope CurrentUser
+        }
+        else
+        {
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Write-host "`t`t|  Pure Storage VMware module already installed  |" -ForegroundColor White
+            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+            Import-Module PureStorage.FlashArray.VMware
+        }
     }
 }
 
@@ -946,15 +952,17 @@ if(Check-ForPrerequisites)
             $Persistence = Check-PureStoragePG -FlashArrayAddress $PureFlashArrayAddress -User $PureFlashArrayUser `
             -Password $script:PureFlashArrayPassword -PersistenceInfo $Persistence -PGName $PGName
         }
-
-        ##Freeze the filesystem
-        foreach($p in $Persistence)
+        if($FreezeFilesystems)
         {
-            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-            Write-host "`t`t|     Freezing filesystem for " $p.MountPoint"       " -ForegroundColor White
-            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-            FreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
-            $script:OperatingSystemPassword -FilesystemMount $p.MountPoint
+            ##Freeze the filesystem
+            foreach($p in $Persistence)
+            {
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                Write-host "`t`t|     Freezing filesystem for " $p.MountPoint"       " -ForegroundColor White
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                FreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
+                $script:OperatingSystemPassword -FilesystemMount $p.MountPoint
+            }
         }
 
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
@@ -965,13 +973,16 @@ if(Check-ForPrerequisites)
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
         Write-host "`t`t| "$PGSnap.name " created              " -ForegroundColor White
         Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-        foreach($p in $Persistence)
+        if($FreezeFilesystems)
         {
-            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-            Write-host "`t`t|     UnFreezing filesystem for " $p.MountPoint"  " -ForegroundColor White
-            Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
-            UnFreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
-            $script:OperatingSystemPassword -FilesystemMount $p.MountPoint
+            foreach($p in $Persistence)
+            {
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                Write-host "`t`t|     UnFreezing filesystem for " $p.MountPoint"  " -ForegroundColor White
+                Write-Host "`t`t ------------------------------------------------ " -ForegroundColor White
+                UnFreezeFileSystem -HostAddress $p.Host_IP -OSUser $OperatingSystemUser -OSPassword `
+                $script:OperatingSystemPassword -FilesystemMount $p.MountPoint
+            }
         }
     }
 }
