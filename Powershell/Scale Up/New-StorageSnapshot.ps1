@@ -128,7 +128,6 @@ Param(
     [Parameter(Mandatory=$False)]
     [switch]$FreezeFilesystems
 )
-$CrashConsistentSnapshot = $true
 ################################
 #       Default Values for     #
 #       optional parameters    #
