@@ -1,0 +1,172 @@
+[
+	{
+        "vendor": "suse",
+        "distribution": "sles",
+        "major": "12",
+        "minor": "sp1",
+        "dm_blk_mq": "false",
+        "scsi_blk_mq": "false",
+        "scheduler": "noop",
+        "mpathconf": "sl12"
+    },
+    {
+        "vendor": "suse",
+        "distribution": "sles",
+        "major": "12",
+        "minor": "sp2",
+        "dm_blk_mq": "false",
+        "scsi_blk_mq": "false",
+        "scheduler": "noop",
+        "mpathconf": "sl12"
+    },
+    {
+        "vendor": "suse",
+        "distribution": "sles",
+        "major": "12",
+        "minor": "sp3",
+        "dm_blk_mq": "false",
+        "scsi_blk_mq": "false",
+        "scheduler": "noop",
+        "mpathconf": "sl12"
+    },
+    {
+        "vendor": "suse",
+        "distribution": "sles",
+        "major": "12",
+        "minor": "sp4",
+        "dm_blk_mq": "true",
+        "scsi_blk_mq": "true",
+        "scheduler": "none",
+        "mpathconf": "sl12"
+    },
+    {
+        "vendor": "suse",
+        "distribution": "sles",
+        "major": "12",
+        "minor": "sp5",
+        "dm_blk_mq": "true",
+        "scsi_blk_mq": "true",
+        "scheduler": "none",
+        "mpathconf": "sl12"
+    },
+    {
+        "vendor": "suse",
+        "distribution": "sles",
+        "major": "15",
+        "minor": "ga",
+        "dm_blk_mq": "true",
+        "scsi_blk_mq": "true",
+        "scheduler": "none",
+        "mpathconf": "sl15"
+    },
+    {
+        "vendor": "suse",
+        "distribution": "sles",
+        "major": "15",
+        "minor": "sp1",
+        "dm_blk_mq": "true",
+        "scsi_blk_mq": "true",
+        "scheduler": "none",
+        "mpathconf": "sl15"
+    },
+    {
+        "vendor": "suse",
+        "distribution": "sles",
+        "major": "15",
+        "minor": "sp2",
+        "dm_blk_mq": "default",
+        "scsi_blk_mq": "default",
+        "scheduler": "none",
+        "mpathconf": "sl15"
+    },
+    {
+        "vendor": "redhat",
+        "distribution": "enterprise_linux",
+        "major": "7.4",
+        "minor": "GA",
+        "dm_blk_mq": "false",
+        "scsi_blk_mq": "false",
+        "scheduler": "noop",
+        "mpathconf": "rh7"
+    },
+    {
+        "vendor": "redhat",
+        "distribution": "enterprise_linux",
+        "major": "7.5",
+        "minor": "GA",
+        "dm_blk_mq": "false",
+        "scsi_blk_mq": "false",
+        "scheduler": "noop",
+        "mpathconf": "rh7"
+    },
+    {
+        "vendor": "redhat",
+        "distribution": "enterprise_linux",
+        "major": "7.6",
+        "minor": "GA",
+        "dm_blk_mq": "false",
+        "scsi_blk_mq": "false",
+        "scheduler": "noop",
+        "mpathconf": "rh7"
+    },
+    {
+        "vendor": "redhat",
+        "distribution": "enterprise_linux",
+        "major": "7.7",
+        "minor": "GA",
+        "dm_blk_mq": "false",
+        "scsi_blk_mq": "false",
+        "scheduler": "noop",
+        "mpathconf": "rh7"
+    },
+    {
+        "vendor": "redhat",
+        "distribution": "enterprise_linux",
+        "major": "7.8",
+        "minor": "GA",
+        "dm_blk_mq": "false",
+        "scsi_blk_mq": "false",
+        "scheduler": "noop",
+        "mpathconf": "rh7"
+    },
+    {
+        "vendor": "redhat",
+        "distribution": "enterprise_linux",
+        "major": "7.9",
+        "minor": "GA",
+        "dm_blk_mq": "false",
+        "scsi_blk_mq": "false",
+        "scheduler": "noop",
+        "mpathconf": "rh7"
+    },
+    {
+        "vendor": "redhat",
+        "distribution": "enterprise_linux",
+        "major": "8.0",
+        "minor": "GA",
+        "dm_blk_mq": "default",
+        "scsi_blk_mq": "default",
+        "scheduler": "none",
+        "mpathconf": "rh8"
+    },
+    {
+        "vendor": "redhat",
+        "distribution": "enterprise_linux",
+        "major": "8.1",
+        "minor": "GA",
+        "dm_blk_mq": "default",
+        "scsi_blk_mq": "default",
+        "scheduler": "none",
+        "mpathconf": "rh8"
+    },
+    {
+        "vendor": "redhat",
+        "distribution": "enterprise_linux",
+        "major": "8.2",
+        "minor": "GA",
+        "dm_blk_mq": "default",
+        "scsi_blk_mq": "default",
+        "scheduler": "none",
+        "mpathconf": "rh8"
+    }
+]
