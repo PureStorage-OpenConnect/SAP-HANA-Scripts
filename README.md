@@ -8,7 +8,7 @@ The following functionality can be achieved with the latest versions of these sc
 - Create crash consistent storage snapshots for SAP HANA systems on FlashArray
 - Recover from application consistent data snapshots for SAP HANA Scale Up systems on FlashArray 
 
-SAP HANA systems deployed on VMware , using virtual volumes (vVols) can have application consistent storage snapshots created (Scale Up and Scale Out) and recovered(Scale Up only) from when using the PowerShell scripts. 
+SAP HANA systems deployed on VMware , using virtual volumes (vVols) can have application consistent storage snapshots created (Scale Up and Scale Out) and recovered(Scale Up only) with both Powershell and Python scripts. 
 
 If a user other than root is specified to be used for connections to the operation system , then the following needs to be added using visudo -
      <user> ALL=NOPASSWD: /sbin/fsfreeze,/usr/bin/rescan-scsi-bus.sh 
