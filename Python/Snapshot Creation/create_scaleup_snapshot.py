@@ -24,13 +24,9 @@ parser.add_argument('-ha','--hostaddress', help='Host address(IP) or hostname of
      SAP HANA Scale Up System', default='localhost')
 parser.add_argument('-i','--instancenumber', help='SAP HANA instance number , \
     typically in the form 00',  default='00')
-parser.add_argument('-dn','--databasename', help='SAP HANA database or tenant name', \
-    required=True)
-parser.add_argument('-p','--port', help='SAP HANA port number , typically in the \
-    form 15,41 taken from the final two digits of the port number', default=15)
-parser.add_argument('-du','--databaseuser', help='SAP HANA database user with the \
+parser.add_argument('-du','--databaseuser', help='SAP HANA system database user with the \
     correct permissions to create a storage snapshot', required=True)
-parser.add_argument('-dp','--databasepassword', help='SAP HANA database password \
+parser.add_argument('-dp','--databasepassword', help='SAP HANA system database password \
     with the correct permissions to create a storage snapshot', 
     default=DB_Password.DEFAULT_DB_Password, type=DB_Password)
 parser.add_argument('-osu','--operatingsystemuser', help='A user with the permissions \
@@ -62,8 +58,6 @@ args = parser.parse_args()
 
 hostaddress = args.hostaddress
 instancenumber = args.instancenumber
-databasename = args.databasename
-port = args.port
 databaseuser = args.databaseuser
 databasepassword = args.databasepassword.value
 operatingsystemuser = args.operatingsystemuser
@@ -79,8 +73,8 @@ vcenterpassword = args.vcenterpassword.value
 
 # hostaddress = ""
 # instancenumber = ""
-# databasename = ""
-# port = ""
+databasename = "SYSTEMDB"
+port = "13"
 # databaseuser = ""
 # databasepassword = ""
 # operatingsystemuser = ""
@@ -100,10 +94,9 @@ def check_pythonversion():
         raise NameError('Minimum version of python required to run this operation is python 3')
 
 # This method takes any SQL command for SAP HANA and sends it to the relevant service. 
-# The port number is included for legacy purposes with single container databases
+# The port number is included to ensure connections are made to the SYSTEMDB
 def execute_saphana_command(command, port_number):
     portvalue = "3" + str(instancenumber) + str(port_number)
-    
     connection = dbapi.connect(address=hostaddress,
                 port=portvalue,
                 user=databaseuser,
@@ -120,19 +113,6 @@ def execute_saphana_command(command, port_number):
             pass
     else:
             print("Database connection not possible")
-
-# This method is responsible for checking the type of SAP HANA database being used 
-# The two possible variants are a single tenant database(SDC) with no nameserver and a multi-tenant database (MDC)
-def check_saphana_system_type():
-    hdbsqlCheckSAPHANASystemType = "SELECT VALUE FROM M_INIFILE_CONTENTS WHERE FILE_NAME \
-        = 'global.ini' AND SECTION = 'multidb' AND KEY = 'mode'"
-    systemtype = execute_saphana_command(hdbsqlCheckSAPHANASystemType, port)
-    if "multidb" in systemtype[0]:
-        multidb = True
-        return multidb
-    else:
-        multidb = False
-        return multidb
 
 # When the instance ID is required this method returnes the 3 character SID of the HANA platform
 def get_saphana_instanceid():
@@ -237,16 +217,12 @@ def create_flasharray_volume_snapshot(serialnumber,snapshot_suffix):
 def prepare_saphana_storage_snapshot():
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    hdbPrepareStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CREATE SNAPSHOT COMMENT \
-        'SNAPSHOT-" + dt_string +"';"
-    hdbRetrieveStorageSnapshotID = "SELECT BACKUP_ID, COMMENT FROM M_BACKUP_CATALOG \
-        WHERE ENTRY_TYPE_NAME = 'data snapshot' AND STATE_NAME = 'prepared' AND COMMENT = 'SNAPSHOT-" + dt_string +"';"
-    multidb = check_saphana_system_type()
-    if multidb:
-        execute_saphana_command(hdbPrepareStorageSnapshot, 13)
-        saphana_snapshot_id = execute_saphana_command(hdbRetrieveStorageSnapshotID, 13)
-    else:
-        execute_saphana_command(hdbPrepareStorageSnapshot, port)
+    hdbPrepareStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CREATE SNAPSHOT COMMENT 'SNAPSHOT-" \
+    + dt_string +"';"
+    hdbRetrieveStorageSnapshotID = "SELECT BACKUP_ID, COMMENT FROM M_BACKUP_CATALOG WHERE \
+        ENTRY_TYPE_NAME = 'data snapshot' AND STATE_NAME = 'prepared' AND COMMENT = 'SNAPSHOT-" + dt_string +"';"
+    execute_saphana_command(hdbPrepareStorageSnapshot, port)
+    saphana_snapshot_id = execute_saphana_command(hdbRetrieveStorageSnapshotID, port)
     saphana_snapshot_id = saphana_snapshot_id[0].column_values[0]
     return saphana_snapshot_id
 
@@ -254,23 +230,13 @@ def prepare_saphana_storage_snapshot():
 def confirm_saphana_storage_snapshot(BackupID, EBID):
     hdbConfirmStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CLOSE SNAPSHOT BACKUP_ID " + \
         str(BackupID) + " SUCCESSFUL '" + "FlashArray Snapshot ID :" + str(EBID) + "';"
-    multidb = check_saphana_system_type()
-    if multidb:
-        execute_saphana_command(hdbConfirmStorageSnapshot, 13)
-
-    else:
-        execute_saphana_command(hdbConfirmStorageSnapshot, port)
+    execute_saphana_command(hdbConfirmStorageSnapshot, port)
 
 # If anything goes wrong during the process this method is called to ensure the storage snapshot has not been successful. 
 def abandon_saphana_storage_snapshot(BackupID, EBID):
     hdbAbandonStorageSnapshot = "BACKUP DATA FOR FULL SYSTEM CLOSE SNAPSHOT BACKUP_ID " \
         + str(BackupID) + " UNSUCCESSFUL '" + str(EBID) + "';"
-    multidb = check_saphana_system_type()
-    if multidb:
-        execute_saphana_command(hdbAbandonStorageSnapshot, 13)
-
-    else:
-        execute_saphana_command(hdbAbandonStorageSnapshot, port)
+    execute_saphana_command(hdbAbandonStorageSnapshot, port)
 
 # SAP HANA keeps track of the data volumes , this method will query the platform to return the location of the data volumes 
 # When using an application consistent data snapshot only the data volume is needed as the process will trigger a savepoint 

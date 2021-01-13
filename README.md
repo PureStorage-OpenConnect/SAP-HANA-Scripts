@@ -13,6 +13,8 @@ SAP HANA systems deployed on VMware , using virtual volumes (vVols) can have app
 If a user other than root is specified to be used for connections to the operation system , then the following needs to be added using visudo -
      <user> ALL=NOPASSWD: /sbin/fsfreeze,/usr/bin/rescan-scsi-bus.sh 
 
+To create a storage snapshot a user needs to be present in the SystemDB with the correct permissions. All connectivity to SAP HANA is done by communicating with the SystemDB on port 30013. Additional information on the required roles can be found in [Authorizations for backup and Recovery](https://help.sap.com/viewer/6b94445c94ae495c83a19646e7c3fd56/2.0.04/en-US/c4b71703bb571014810ebb38dc59cf51.html).
+
 ## PowerShell Scripts 
 
 **Create an application consistent storage snapshot for Scale Up systems** 
@@ -103,7 +105,7 @@ A volume snapshot is only created for the SAP HANA data volume. Log backups are 
 
 <u>Location</u> - Python/Snapshot Creation/create_scaleup_snapshot.py
 
-`saphana_create_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword>`
+`saphana_create_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber>   --databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword>`
 
 **Create a crash consistent storage snapshot for Scale Up systems (Bare metal deployments)**
 
@@ -111,7 +113,7 @@ A volume snapshot is created for both the data and log volumes for the SAP HANA 
 
 <u>Location</u> - Python/Snapshot Creation/create_scaleup_snapshot.py
 
-`saphana_create_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --crashconsistent`
+`saphana_create_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> ---databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --crashconsistent`
 
 **Create an application consistent storage snapshot for Scale Up systems (VMware vVol deployments)** 
 
@@ -119,7 +121,7 @@ A volume snapshot is only created for the SAP HANA data volume. Log backups are 
 
 <u>Location</u> - Python/Snapshot Creation/create_scaleup_snapshot.py
 
-`saphana_create_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
+`saphana_create_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
 
 **Create a crash consistent storage snapshot for Scale Up systems (VMware vVol deployments)**
 
@@ -127,7 +129,7 @@ A volume snapshot is created for both the data and log volumes for the SAP HANA 
 
 <u>Location</u> - Python/Snapshot Creation/create_scaleup_snapshot.py
 
-`saphana_create_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --crashconsistent --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
+`saphana_create_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --crashconsistent --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
 
 **Create an application consistent storage snapshot for Scale Out systems (Bare metal deployments)**
 
@@ -135,7 +137,7 @@ A volume snapshot is only created for the SAP HANA data volume on each worker ho
 
 <u>Location</u> - Python/Snapshot Creation/create_scaleout_snapshot.py
 
-`saphana_create_snapshot.py --hostaddress<Host Address of a worker node in the SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword>`
+`saphana_create_snapshot.py --hostaddress<Host Address of a worker node in the SAP HANA system> --instancenumber <instancenumber> --databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword>`
 
 **Create an application consistent storage snapshot for Scale Out systems (VMware vVol deployments)**
 
@@ -143,7 +145,7 @@ A volume snapshot is only created for the SAP HANA data volume on each worker ho
 
 <u>Location</u> - Python/Snapshot Creation/create_scaleout_snapshot.py
 
-`saphana_create_snapshot.py --hostaddress<Host Address of a worker node in the SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
+`saphana_create_snapshot.py --hostaddress<Host Address of a worker node in the SAP HANA system> --instancenumber <instancenumber> --databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
 
 **Create a crash consistent storage snapshot for Scale Out systems (Bare metal deployments)** 
 
@@ -151,7 +153,7 @@ A volume snapshot is created for both the data and log volumes on each worker fo
 
 <u>Location</u> - Python/Snapshot Creation/create_scaleout_snapshot.py
 
-`saphana_create_snapshot.py --hostaddress<Host Address of a worker node in the SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --crashconsistent`
+`saphana_create_snapshot.py --hostaddress<Host Address of a worker node in the SAP HANA system> --instancenumber <instancenumber> --databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --crashconsistent`
 
 **Create a crash consistent storage snapshot for Scale Out systems (VMware vVol deployments)** 
 
@@ -159,7 +161,7 @@ A volume snapshot is created for both the data and log volumes on each worker fo
 
 <u>Location</u> - Python/Snapshot Creation/create_scaleout_snapshot.py
 
-`saphana_create_snapshot.py --hostaddress<Host Address of a worker node in the SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --crashconsistent --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
+`saphana_create_snapshot.py --hostaddress<Host Address of a worker node in the SAP HANA system> --instancenumber <instancenumber>--databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --crashconsistent --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
 
 **Recover from an application consistent storage snapshot for Scale Up systems (copy to new volume) (Bare metal deployments)** 
 
@@ -167,7 +169,7 @@ Running this script with the arguments will bring up an interactive ASCII menu ,
 
 <u>Location</u> - Python/Snapshot Creation/recover_scaleup_snapshot.py
 
-`saphana_recoverfrom_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword>`
+`saphana_recoverfrom_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port> --databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword>`
 
 **Recover from an application consistent storage snapshot for Scale Up systems (overwrite existing volume) (Bare metal deployments)** 
 
@@ -175,7 +177,7 @@ Running this script with the arguments will bring up an interactive ASCII menu ,
 
 <u>Location</u> - Python/Snapshot Creation/recover_scaleup_snapshot.py
 
-`saphana_recoverfrom_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --overwritevolume`
+`saphana_recoverfrom_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --overwritevolume`
 
 **Recover from an application consistent storage snapshot for Scale Up systems (VMware vVol deployments)** 
 
@@ -183,7 +185,7 @@ Running this script with the arguments will bring up an interactive ASCII menu ,
 
 <u>Location</u> - Python/Snapshot Creation/recover_scaleup_snapshot.py
 
-`saphana_recoverfrom_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databasename <databasename> --port<last two digits of the SAP HANA port>  --databaseuser <user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --overwritevolume --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
+`saphana_recoverfrom_snapshot.py --hostaddress<Host Address of SAP HANA system> --instancenumber <instancenumber> --databaseuser <systemdb user with permissions to create storage snapshot> --databasepassword <password of databaseuser> --operatingsystemuser <user with permissions to freeze and unfreeze filesystems and query device information> --operatingsystempassword <password of operatingsystemuser> --flasharray <flasharray IP or FQDN of the SAP HANA block storage provider> --flasharrayuser <flasharrayuser> --flasharraypassword <flasharraypassword> --overwritevolume --vcenteraddress --vcenteruser <a user with access to the vCenter server> --vcenterpassword <password of the vcenter user>` 
 
 ## Known Issues
  - (PowerShell) POSH-SSH returns issues with Renci.SshNet - use the workaround proposed in the comment - https://github.com/darkoperator/Posh-SSH/issues/284#issuecomment-531736793
