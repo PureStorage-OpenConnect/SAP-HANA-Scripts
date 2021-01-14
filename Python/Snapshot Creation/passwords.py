@@ -33,7 +33,7 @@ class SID_Password:
     DEFAULT_DB_SID_Password = 'Prompt if not specified'
     def __init__(self, value):
         if value == self.DEFAULT_DB_SID_Password:
-            value = getpass.getpass('Database SID Password: ')
+            value = getpass.getpass('Database <sid>adm user Password: ')
         self.value = value
 
     def __str__(self):

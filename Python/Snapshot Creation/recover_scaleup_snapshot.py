@@ -280,6 +280,8 @@ def restore_overwrite_volume(snapshot, mount_point, backupid, serialno, virtual_
             if(found):
                 new_volume = array.copy_volume(snapshot.get("name"), volname, overwrite=True)
                 break
+        if(new_volume is None):
+            raise NameError('There was an error location the source volume on the array')
     #operating system rescan for new device 
     sshclient = prepare_ssh_connection()
     rescan_scsi_bus_add_string = "sudo rescan-scsi-bus.sh -a"
@@ -335,7 +337,7 @@ def restore_copyvolume(snapshot, mount_point, backupid, serialno):
                     time.sleep(30)
                     sshclient.close()
                     returned_serial_number = get_volume_serialno(mount_point)
-                    foundfinal = str(new_volume.get("serial")).lower() in serialno
+                    foundfinal = str(new_volume.get("serial")).lower() in returned_serial_number
                     if(foundfinal):
                         return True
                     else:
@@ -407,6 +409,7 @@ try:
                     serial_number = get_volume_serialno(data_volume)
                     # Check if the volume is a vdisk or a direct attached disk
                     virtual_disk = False
+                    volume_device = None
                     vendor_string = serial_number[0 : 8]
                     # This is a disk directly attached to the host
                     if(vendor_string == '3624a937'):

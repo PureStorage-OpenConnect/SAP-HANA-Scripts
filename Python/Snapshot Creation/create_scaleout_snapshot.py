@@ -44,17 +44,17 @@ parser.add_argument('-fau','--flasharrayuser', help='A user on the FlashArray wi
 parser.add_argument('-fap','--flasharraypassword', help='Password for the user with \
     permissions to create a volume snapshot on FlashArray', required=False, 
     default=FlashArray_Password.DEFAULT_FlashArray_Password, type=FlashArray_Password)
-parser.add_argument('-cc','--crashconsistent', action="store_false", default=None,\
-     help='Create a crash consistent snapshot in a protection group',required=False) 
-parser.add_argument('-ff','--freezefilesystem', action="store_false", default=None,\
-     help='Freeze the filesystem to avoid any IO going to the volume',required=False)
+parser.add_argument('-cc','--crashconsistent', action="store_true",\
+     help='Create a crash consistent snapshot in a protection group',required=False)
+parser.add_argument('-ff','--freezefilesystem', action="store_true",\
+     help='Freeze the filesystem to avoid any IO going to the volume',required=False)  
 parser.add_argument('-vca','--vcenteraddress', help='The IP address or hostname of a vCenter \
     Server managing the SAP HANA VM ', required=False, default=None)
 parser.add_argument('-vcu','--vcenteruser', help='The Username of a user for the vCenter\
     Server managing the SAP HANA VM ', required=False, default=None)
 parser.add_argument('-vcp','--vcenterpassword', type=vCenter_Password, help='The Password of a user for the vCenter\
     Server managing the SAP HANA VM ', default=vCenter_Password.DEFAULT_vCenter_Password)
-parser.add_argument('--version', action='version', version='%(prog)s 0.4')
+parser.add_argument('--version', action='version', version='%(prog)s 0.5')
 
 args = parser.parse_args()
 
