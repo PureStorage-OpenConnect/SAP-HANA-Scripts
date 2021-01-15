@@ -7,19 +7,24 @@ The following functionality can be achieved with the latest versions of these sc
 - Create application consistent storage snapshots for SAP HANA systems on FlashArray
 - Create crash consistent storage snapshots for SAP HANA systems on FlashArray
 - Recover from application consistent data snapshots for SAP HANA Scale Up systems on FlashArray 
+- Automate the application of best practices for SAP HANA deployments on Red Hat Enterprise Linux and SUSE Enterprise  Linux
 
 SAP HANA systems deployed on VMware , using virtual volumes (vVols) can have application consistent storage snapshots created (Scale Up and Scale Out) and recovered(Scale Up only) with both Powershell and Python scripts. 
 
-If a user other than root is specified to be used for connections to the operation system , then the following needs to be added using visudo -
+If a user other than root is specified to be used for connections to the operating system , then the following needs to be added using visudo -
      <user> ALL=NOPASSWD: /sbin/fsfreeze,/usr/bin/rescan-scsi-bus.sh 
 
 To create a storage snapshot a user needs to be present in the SystemDB with the correct permissions. All connectivity to SAP HANA is done by communicating with the SystemDB on port 30013. Additional information on the required roles can be found in [Authorizations for backup and Recovery](https://help.sap.com/viewer/6b94445c94ae495c83a19646e7c3fd56/2.0.04/en-US/c4b71703bb571014810ebb38dc59cf51.html).
+
+## Update (01/2021)
+
+The Python scripts for SAP HANA have now been built into standalone packages using [pyinstaller](https://www.pyinstaller.org/) and then further built into an [rpm](https://rpm.org/) , known as the SAP HANA Toolkit for easy distribution for multiple SAP HANA deployments. For further information on how to use the package and its contents see Using the SAP HANA Toolkit. 
 
 ## PowerShell Scripts 
 
 **Create an application consistent storage snapshot for Scale Up systems** 
 
-A volume snapshot is only created for the SAP HANA data volume. Log backups are used to roll the database forward during the recovery process. See [blog post](https://www.andrewsillifant.com/new-sap-hana-scripts-for-automating-storage-operations/) for more details.
+A volume snapshot is only created for the SAP HANA data volume. Log backups are used to roll the database forward during the recovery process.
 
 <u>Location</u> - Powershell/Snapshot Creation/New-ScaleUpStorageSnapshot.ps1
 
