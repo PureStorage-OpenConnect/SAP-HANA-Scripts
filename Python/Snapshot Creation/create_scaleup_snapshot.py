@@ -54,39 +54,39 @@ parser.add_argument('-vcp','--vcenterpassword', type=vCenter_Password, help='The
     Server managing the SAP HANA VM ', default=vCenter_Password.DEFAULT_vCenter_Password)
 parser.add_argument('--version', action='version', version='%(prog)s 0.5')
 
-# args = parser.parse_args()
+args = parser.parse_args()
 
-# hostaddress = args.hostaddress
-# instancenumber = args.instancenumber
-# databaseuser = args.databaseuser
-# databasepassword = args.databasepassword.value
-# operatingsystemuser = args.operatingsystemuser
-# operatingsystempassword = args.operatingsystempassword.value
-# flasharray = args.flasharray
-# flasharrayuser = args.flasharrayuser
-# flasharraypassword = args.flasharraypassword.value
-# crashconsistent = args.crashconsistent
-# freezefilesystem = args.freezefilesystem
-# vcenteraddress = args.vcenteraddress
-# vcenteruser = args.vcenteruser
-# vcenterpassword = args.vcenterpassword.value
+hostaddress = args.hostaddress
+instancenumber = args.instancenumber
+databaseuser = args.databaseuser
+databasepassword = args.databasepassword.value
+operatingsystemuser = args.operatingsystemuser
+operatingsystempassword = args.operatingsystempassword.value
+flasharray = args.flasharray
+flasharrayuser = args.flasharrayuser
+flasharraypassword = args.flasharraypassword.value
+crashconsistent = args.crashconsistent
+freezefilesystem = args.freezefilesystem
+vcenteraddress = args.vcenteraddress
+vcenteruser = args.vcenteruser
+vcenterpassword = args.vcenterpassword.value
 
-hostaddress = "sarah.soln.local"
-instancenumber = "00"
+# hostaddress = "l"
+# instancenumber = """
 databasename = "SYSTEMDB"
 port = "13"
-databaseuser = "SYSTEM"
-databasepassword = "Osmium76"
-operatingsystemuser = "root"
-operatingsystempassword = "Osmium76"
-flasharray = "10.21.227.53"
-flasharrayuser = "pureuser"
-flasharraypassword = "pureuser"
-vcenteraddress = ""
-vcenteruser = ""
-vcenterpassword = ""
-crashconsistent = False
-freezefilesystem = False
+# databaseuser = ""
+# databasepassword = ""
+# operatingsystemuser = ""
+# operatingsystempassword = ""
+# flasharray = ""
+# flasharrayuser = ""
+# flasharraypassword = ""
+# vcenteraddress = ""
+# vcenteruser = ""
+# vcenterpassword = ""
+# crashconsistent = False
+# freezefilesystem = False
 
 # This method is responsible for ensuring that the version of Python be used is 3 or higher
 def check_pythonversion():
