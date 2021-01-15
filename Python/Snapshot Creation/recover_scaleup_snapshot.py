@@ -47,7 +47,7 @@ parser.add_argument('-fap','--flasharraypassword', help='Password for the user w
 parser.add_argument('-sp','--sidadmpassword',\
      help='<sid>adm password for the <sid>adm user ', 
      default=SID_Password.DEFAULT_DB_SID_Password, type=SID_Password)
-parser.add_argument('-ov','--overwritevolume', action="store_false", default=None,\
+parser.add_argument('-ov','--overwritevolume', action="store_true", default=None,\
      help='Overwrite the original SAP HANA volume with the snapshot',required=False) 
 parser.add_argument('-vca','--vcenteraddress', help='The IP address or hostname of a vCenter \
     Server managing the SAP HANA VM ', required=False, default=None)
