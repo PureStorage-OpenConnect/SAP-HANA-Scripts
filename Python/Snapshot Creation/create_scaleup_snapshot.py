@@ -85,7 +85,7 @@ flasharraypassword = "pureuser"
 vcenteraddress = ""
 vcenteruser = ""
 vcenterpassword = ""
-crashconsistent = True
+crashconsistent = False
 freezefilesystem = False
 
 # This method is responsible for ensuring that the version of Python be used is 3 or higher
@@ -118,6 +118,7 @@ def execute_saphana_command(command, port_number):
 def get_saphana_instanceid():
     hdbsqlGetSAPHANAInstanceID = "SELECT VALUE from SYS.M_SYSTEM_OVERVIEW WHERE NAME = 'Instance ID'"
     instanceid =  execute_saphana_command(hdbsqlGetSAPHANAInstanceID,port)
+    instanceid = instanceid[0].column_values[0]
     return instanceid
 
 # When bash commands need to be run this method is triggered
@@ -247,7 +248,7 @@ def get_saphana_data_volume_mount():
     data_volume = execute_saphana_command(hdbGetHANADataVolumeMount, port)
     instanceid = get_saphana_instanceid()
     data_volume = data_volume[0].column_values
-    data_volume = str(data_volume[0]).replace("/" + str(instanceid[0].column_values[0]), "")
+    data_volume = str(data_volume[0]).replace("/" + instanceid, "")
     return data_volume
 
 # This method helps to identify the volume name 
@@ -274,7 +275,7 @@ def get_persistence_volumes_location():
     volumes = []
     for item in persistenceVolumes:
         mount = item.column_values[0]
-        mount = str(mount).replace("/" + str(instanceid[0].column_values[0]), "")
+        mount = str(mount).replace("/" + instanceid, "")
         serialNumber = get_volume_serialno(mount)
         vendor_string = serialNumber[0 : 8]
         volname = None

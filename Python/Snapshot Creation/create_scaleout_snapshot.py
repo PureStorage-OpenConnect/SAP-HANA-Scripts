@@ -122,6 +122,7 @@ def execute_saphana_command(command, port_number):
 def get_saphana_instanceid():
     hdbsqlGetSAPHANAInstanceID = "SELECT VALUE from SYS.M_SYSTEM_OVERVIEW WHERE NAME = 'Instance ID'"
     instanceid =  execute_saphana_command(hdbsqlGetSAPHANAInstanceID,port)
+    instanceid = instanceid[0].column_values[0]
     return instanceid
 
 # When bash commands need to be run this method is triggered
@@ -339,7 +340,7 @@ def get_persistence_volumes_location():
 # If using crash consistency then the volumes are added to a protection group and a protection group snap is created
 def create_protection_group_snap(volumes):
     instanceid = get_saphana_instanceid()
-    pgname = "SAPHANA-" + instanceid[0] + "-CrashConsistency"
+    pgname = "SAPHANA-" + instanceid + "-CrashConsistency"
     array = purestorage_custom.FlashArray(flasharray,flasharrayuser, flasharraypassword,verify_https=False)
     try:
         pgroup = array.get_pgroup(pgname)
