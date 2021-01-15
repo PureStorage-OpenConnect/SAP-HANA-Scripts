@@ -314,7 +314,8 @@ def get_persistence_volumes_location():
 
 # If using crash consistency then the volumes are added to a protection group and a protection group snap is created
 def create_protection_group_snap(volumes):
-    pgname = "SAPHANA-" + databasename + "-CrashConsistency"
+    instanceid = get_saphana_instanceid()
+    pgname = "SAPHANA-" + instanceid + "-CrashConsistency"
     array = purestorage_custom.FlashArray(flasharray,flasharrayuser, flasharraypassword,verify_https=False)
     try:
         pgroup = array.get_pgroup(pgname)
