@@ -18,7 +18,7 @@ To create a storage snapshot a user needs to be present in the SystemDB with the
 
 ## Update (01/2021)
 
-The Python scripts for SAP HANA have now been built into standalone packages using [pyinstaller](https://www.pyinstaller.org/) and then further built into an [rpm](https://rpm.org/) , known as the SAP HANA Toolkit for easy distribution for multiple SAP HANA deployments. For further information on how to use the package and its contents see Using the SAP HANA Toolkit. 
+The Python scripts for SAP HANA have now been built into standalone packages using [pyinstaller](https://www.pyinstaller.org/) and then further built into an [rpm](https://rpm.org/) , known as the SAP HANA Toolkit for easy distribution for multiple SAP HANA deployments. For further information on how to use the package and its contents see [Using the Pure Storage SAP HANA Toolkit](https://support.purestorage.com/Solutions/SAP/SAP_HANA_on_FlashArray/Getting_Started/Using_the_SAP_HANA_Toolkit). 
 
 ## PowerShell Scripts 
 
