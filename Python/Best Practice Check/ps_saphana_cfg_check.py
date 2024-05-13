@@ -1,6 +1,6 @@
 ##################################################################################################
 #                                                                                                #
-#   Pure Storage Inc. (2021) SAP HANA operating system configuration check and applicator.       #
+#   Pure Storage Inc. (2024) SAP HANA operating system configuration check and applicator.       #
 #            Works with Red Hat Enterprise Linux and SUSE Enterprise Linux.                      #       
 #  Checks for and applies the recommended settings for persistent storage based on Pure Storage  # 
 #                                   FlashArray block storage                                     #  
@@ -24,9 +24,8 @@ ignore_hypervisor_check = args.nohypervisor
 
 # This is where the configuration files for the relevent operation systems will be found
 # Files located here should be :
-# rh7 = Red Hat Enterprise Linux version 7.x
 # rh8 = Red Hat Enterprise Linux version 8.x
-# sl12 = SUSE Enterprise Linux version 12.x
+# rh9 = Red Hat Enterprise Linux version 9.x
 # sl15 = SUSE Eneterprise Linux version 15.x
 cfg_file_path = "/opt/purestorage/saphana_toolkit/"
 
@@ -42,11 +41,15 @@ def get_platform_info():
         platform = parsedresponse
     elif(parsedresponse == "vmware"):
         if(ignore_hypervisor_check is not None):
-            print("This is a VMware virtual machine. The appropriate settings will be applied")
+            print("This is a VMware virtual machine. No settings will be applied. Use saptune")
             platform = parsedresponse
         else:
             print("This is a VMware virtual machine but the hypervisor specific settings will be ignored")
             platform = "none"
+    #This is a check for CBS based instances within Azure
+    #elif(parsedresponse == "microsoft"):
+    #        print("This is a Microsoft Azure virtual machine. Pure Storage specific settings will be applied.")
+    #        platform = parsedresponse
     else:
         print("the system is a VM on an unsupported platform")
     stream = os.popen("cat /etc/os-release | grep CPE_NAME")
@@ -81,6 +84,10 @@ def get_recommended_config(system_configuration):
 # If recommended the bootloader options are altered to allow for a different IO scheduler
 # If recommended the multipath configuration is applied
 # If any changes are made to the bootloader then a reboot must take place
+
+# for 1.0 we add support for CBS need to change the multipath parameter and the nvme_core.multipath parameter. The local boot disk also needs to be blacklisted. 
+# multipath=on rootdelay=300 scsi_mod.use_blk_mq=1 USE_BY_UUID_DEVICE_NAMES=1 nvme_core.multipath=N
+
 def apply_recommended_settings(settings):
     #First do the bootloader
     bootloader_rebuild = False
@@ -133,7 +140,23 @@ def apply_recommended_settings(settings):
                 setting_applied_or_skipped = True
             else:
                 print("Invalid response")
-           
+    
+    # This could be a CBS instance connected to Microsoft Azure VM's or AWS EC2 VM's
+    # Only Microsoft supported in 1.0
+    if(settings.get("platform") == "microsoft"):
+        setting_applied_or_skipped = False
+        while(setting_applied_or_skipped != True):
+            config_dmmpath_mod = input("This will change the device-mapper-multipathing from off to on, Confirm ? (y/n) -->: ")
+            if(config_dmmpath_mod.lower() == "y"):
+                reboot_needed = add_bootloader_cfg("multipath=on")
+                if(reboot_needed):
+                    bootloader_rebuild = True
+                    print("This system needs to be rebooted in order to enable multipathing")
+                setting_applied_or_skipped = True
+            elif(config_dmmpath_mod.lower() == "n"):
+                print("Skipping enabling multipathing module")
+                setting_applied_or_skipped = True
+
     if(settings.get("platform") == "none"):
         #Second do multipath.conf
         print("\n Checking multipath and device rules configuration \n")
@@ -147,6 +170,8 @@ def apply_recommended_settings(settings):
         print("\n DONE! \n")
     elif (settings.get("platform") == "vmware"):
         print("\n  Skipping multipath and device rules configuration \n")
+
+
     #If any bootloader configurations have changed then the bootloadeer needs to be rebuilt
     if(bootloader_rebuild):
         print("\n Rebuilding bootloader \n")
@@ -180,12 +205,6 @@ def set_udev_rules(config):
     udev_config = list()
     udev_config.append("# Recommended settings for Pure Storage FlashArray.")
     udev_config.append("\n")
-    udev_config.append("# Use " + config.get("scheduler") + " scheduler for high-performance solid-state storage for SCSI device")
-    udev_config.append("\n")
-    udev_config.append("ACTION==\"add|change\", KERNEL==\"sd*[!0-9]\", SUBSYSTEM==\"block\", ENV{ID_VENDOR}==\"PURE\", ATTR{queue/scheduler}=\"" + config.get("scheduler") + "\"")
-    udev_config.append("\n")
-    udev_config.append("ACTION==\"add|change\", KERNEL==\"dm-[0-9]*\", SUBSYSTEM==\"block\", ENV{DM_NAME}==\"3624a937*\", ATTR{queue/scheduler}=\"" + config.get("scheduler") + "\"")
-    udev_config.append("\n")
     udev_config.append("# Reduce CPU overhead due to entropy collection")
     udev_config.append("\n")
     udev_config.append("ACTION==\"add|change\", KERNEL==\"sd*[!0-9]\", SUBSYSTEM==\"block\", ENV{ID_VENDOR}==\"PURE\", ATTR{queue/add_random}=\"0\"")
@@ -208,7 +227,7 @@ def set_udev_rules(config):
     udev_config.append("\n")
     udev_config.append("ACTION==\"add|change\", KERNEL==\"dm-[0-9]*\", SUBSYSTEM==\"block\", ENV{DM_NAME}==\"3624a937*\", ATTR{queue/max_sectors_kb}=\"512\"")
     udev_config.append("\n")
-    udev_config.append("# Set DM devices number of requests to 2048")
+    udev_config.append("# Set DM devices number of requests to 1024 for read performance")
     udev_config.append("\n")
     udev_config.append("ACTION==\"add|change\", KERNEL==\"dm-[0-9]*\", SUBSYSTEM==\"block\", ENV{DM_NAME}==\"3624a937*\", ATTR{queue/nr_requests}=\"1024\"")
     udev_config.append("\n")

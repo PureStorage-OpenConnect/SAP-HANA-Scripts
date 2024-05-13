@@ -1,6 +1,6 @@
 ##################################################################################################
 #                                                                                                #
-#      Pure Storage Inc. (2021) SAP HANA Data Snapshot creation script for Scale Up deployments  #
+#      Pure Storage Inc. (2024) SAP HANA Data Snapshot creation script for Scale Up deployments  #
 #            Works with Red Hat Enterprise Linux and SUSE Enterprise Linux.                      #       
 #     Creates both crash consistent and application consistent storage snapshots for SAP HANA    # 
 #                             systems on Flasharray block storage                                #  
@@ -11,13 +11,13 @@ import sys
 import argparse
 import paramiko
 import re
-import purestorage_custom
+from pypureclient import flasharray
 from passwords import DB_Password, OS_Password, SID_Password, vCenter_Password, FlashArray_Password
 from hdbcli import dbapi
 from datetime import datetime
 from vsphere import vsphere_get_vvol_disk_identifiers
 
-#Arguments
+# #Arguments
 parser = argparse.ArgumentParser(description='Process the creation of an SAP \
     HANA application consistent storage snapshot for a Scale Up deployment')
 parser.add_argument('-ha','--hostaddress', help='Host address(IP) or hostname of the\
@@ -35,11 +35,11 @@ parser.add_argument('-osu','--operatingsystemuser', help='A user with the permis
 parser.add_argument('-osp','--operatingsystempassword', help='Password for the user \
     with permissions to freeze the SAP HANA data volume and view volume information'\
         , default=OS_Password.DEFAULT_OS_Password, type=OS_Password)
-parser.add_argument('-fa','--flasharray', help='The IP address or hostname of a Pure \
+parser.add_argument('-fa','--flasharraydevice', help='The IP address or hostname of a Pure \
     Storage FlashArray with the SAP HANA systems volumes on it ', required=True)
 parser.add_argument('-fau','--flasharrayuser', help='A user on the FlashArray with \
     permissions to create a volume snapshot', required=True)
-parser.add_argument('-fap','--flasharraypassword', help='Password for the user with \
+parser.add_argument('-fap','--flasharrayapitoken', help='API token for the user with \
     permissions to create a volume snapshot on FlashArray', required=False, 
     default=FlashArray_Password.DEFAULT_FlashArray_Password, type=FlashArray_Password)
 parser.add_argument('-cc','--crashconsistent', action="store_true",\
@@ -52,7 +52,7 @@ parser.add_argument('-vcu','--vcenteruser', help='The Username of a user for the
     Server managing the SAP HANA VM ', required=False, default=None)
 parser.add_argument('-vcp','--vcenterpassword', type=vCenter_Password, help='The Password of a user for the vCenter\
     Server managing the SAP HANA VM ', default=vCenter_Password.DEFAULT_vCenter_Password)
-parser.add_argument('--version', action='version', version='%(prog)s 0.5')
+parser.add_argument('--version', action='version', version='%(prog)s 1.0')
 
 args = parser.parse_args()
 
@@ -62,26 +62,26 @@ databaseuser = args.databaseuser
 databasepassword = args.databasepassword.value
 operatingsystemuser = args.operatingsystemuser
 operatingsystempassword = args.operatingsystempassword.value
-flasharray = args.flasharray
+flasharraydevice = args.flasharraydevice
 flasharrayuser = args.flasharrayuser
-flasharraypassword = args.flasharraypassword.value
+flasharrayapitoken = args.flasharrayapitoken.value
 crashconsistent = args.crashconsistent
 freezefilesystem = args.freezefilesystem
 vcenteraddress = args.vcenteraddress
 vcenteruser = args.vcenteruser
 vcenterpassword = args.vcenterpassword.value
 
-# hostaddress = "l"
-# instancenumber = """
+# hostaddress = ""
+# instancenumber = ""
 databasename = "SYSTEMDB"
 port = "13"
 # databaseuser = ""
 # databasepassword = ""
 # operatingsystemuser = ""
 # operatingsystempassword = ""
-# flasharray = ""
+# flasharraydevice = ""
 # flasharrayuser = ""
-# flasharraypassword = ""
+# flasharrayapitoken = ""
 # vcenteraddress = ""
 # vcenteruser = ""
 # vcenterpassword = ""
@@ -92,6 +92,8 @@ port = "13"
 def check_pythonversion():
     if sys.version_info[0] < 3:
         raise NameError('Minimum version of python required to run this operation is python 3')
+    elif sys.version_info[0] == 3 and sys.version_info[1] < 9:
+        raise NameError('Minimum version of python required to run this operation is python 3.9')
 
 # This method takes any SQL command for SAP HANA and sends it to the relevant service. 
 # The port number is included to ensure connections are made to the SYSTEMDB
@@ -172,20 +174,21 @@ def unfreeze_filesystem(volume_mount):
 # If the volume world wide ID string matches the VMware vendor string , then the vcenter credentials are used to check if vvols are being used
 # VMFS based virtual disks are not supported - only vVols
 def create_flasharray_volume_snapshot(serialnumber,snapshot_suffix):
-    array = purestorage_custom.FlashArray(flasharray,flasharrayuser, flasharraypassword,verify_https=False)
+    array = flasharray.Client(flasharraydevice, api_token=flasharrayapitoken, username=flasharrayuser, verify_ssl=None)
     snapserial = None
     vendor_string = serialnumber[0 : 8]
     # This is a disk directly attached to the host
     if(vendor_string == '3624a937'):
-        volumes =  array.list_volumes()
-        for key in volumes:
-            volname = key.get("name")
-            volserial = str(key.get("serial")).lower()
+        volumes = array.get_volumes()
+        for key in volumes.items:
+            volname = key.name
+            volserial = str(key.serial).lower()
             found = volserial.lower() in serialnumber.lower()
             if found:
-                snapshot_id = array.create_snapshot(volname, suffix=snapshot_suffix)
-                snapserial = str(snapshot_id.get("serial"))
-                return snapserial
+                volsnappost = flasharray.VolumeSnapshotPost(destroyed=None, suffix=snapshot_suffix)
+                snapshot_id = array.post_volume_snapshots(source_names=volname, volume_snapshot=volsnappost)
+                for snap in snapshot_id.items:
+                    return snap.serial
     elif(vendor_string == '36000c29'):
         # Then this is a VMware vdisk volume ,need to check if it is vvol based
         vm_disk_info = None
@@ -254,12 +257,12 @@ def get_saphana_data_volume_mount():
 # This method helps to identify the volume name 
 # To create a block storage snapshot the volume name is used with the Pure Storage RESTFul API
 def get_volume_name(serialno):
-    array = purestorage_custom.FlashArray(flasharray,flasharrayuser, flasharraypassword,verify_https=False)
-    volumes =  array.list_volumes()
-    for key in volumes:
-        volname = key.get("name")
-        volserial = str(key.get("serial")).lower()
-        found = volserial in serialno
+    array = flasharray.Client(flasharraydevice, api_token=flasharrayapitoken, username=flasharrayuser, verify_ssl=None)
+    volumes = array.get_volumes()
+    for key in volumes.items:
+        volname = key.name
+        volserial = str(key.serial).lower()
+        found = volserial.lower() in serialno.lower()
         if found:
             return volname
     return False
@@ -285,7 +288,7 @@ def get_persistence_volumes_location():
         elif(vendor_string == '36000c29'):
             # Then this is a VMware vdisk volume ,need to check if it is vvol based
             vm_disk_info = None
-            array = purestorage_custom.FlashArray(flasharray,flasharrayuser, flasharraypassword,verify_https=False)
+            array = flasharray.Client(flasharraydevice, api_token=flasharrayapitoken, username=flasharrayuser, verify_ssl=None)
             if(vcenteraddress is not None and vcenteruser is not None and vcenterpassword is not None):
                 vcenter_dict = {'address':vcenteraddress,'vc_user':vcenteruser,'vc_pass':vcenterpassword}
             else:
@@ -316,15 +319,17 @@ def get_persistence_volumes_location():
 # If using crash consistency then the volumes are added to a protection group and a protection group snap is created
 def create_protection_group_snap(volumes):
     instanceid = get_saphana_instanceid()
-    pgname = "SAPHANA-" + instanceid + "-CrashConsistency"
-    array = purestorage_custom.FlashArray(flasharray,flasharrayuser, flasharraypassword,verify_https=False)
+    pgname = "SAPHANA-" + instanceid + "-CrashConsistent"
+    array = flasharray.Client(flasharraydevice, api_token=flasharrayapitoken, username=flasharrayuser, verify_ssl=None)
     try:
-        pgroup = array.get_pgroup(pgname)
+        pgroup = array.get_protection_groups(names=pgname)
     except Exception:
-        array.create_pgroup(pgname)
+        array.post_protection_groups(names=pgname)
+    vollist = ""
     for vol in volumes:
-        protectiongroups = array.add_volume(vol.get('volumename'), pgname)
-    pgsnap = array.create_pgroup_snapshot(pgname)
+        vollist = vollist + vol.get('volumename') + ","
+    protectiongroupvolumes = array.post_protection_groups_volumes(group_names=pgname, member_names=vollist)
+    pgsnap = array.post_protection_group_snapshots(source_names=pgname)
     return pgsnap
 
 # This is the equivalent of the "Main" method where execution is run
@@ -355,7 +360,7 @@ try:
        for volume in formattedvolumes:
             if(freezefilesystem == True):
                 unfreeze_filesystem(volume.get('mountpoint'))
-       print ("Crash consistent storage snapshot " + snapname.get('name') + " created")
+       print ("Crash consistent storage snapshot created")
 except Exception as e:
     print(e)
     if(crashconsistent == False):
